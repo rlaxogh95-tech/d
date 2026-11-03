@@ -126,6 +126,23 @@
   #decalPos button.on{border-color:var(--acc);background:#3a3010}
   .note{display:block;opacity:.6;font-size:11px;margin-top:6px;line-height:1.5}
   @media(max-width:600px){#bPause{left:auto;right:16px;top:178px;width:38px;height:38px}}
+  .setc{width:min(460px,92vw)}
+  .srow2{display:grid;grid-template-columns:100px 1fr 40px;gap:10px;align-items:center;margin:8px 0;font-size:14px}
+  .srow2 .seg{grid-column:2 / 4}
+  .srow2 input[type=range]{width:100%;accent-color:#ffb703}
+  .seg{display:flex;gap:6px;flex-wrap:wrap}
+  .seg button{font-size:13px;padding:6px 12px}
+  .seg button.on{background:var(--acc);color:#1a1300;font-weight:800;border-color:var(--acc)}
+  .diffrow{display:flex;gap:10px;align-items:center;font-size:14px}
+  .keys{font-size:13px;opacity:.85;line-height:1.7}
+  button.danger{margin-top:12px;border-color:#ff6b6b;color:#ff9a9a;font-size:13px}
+  .mcard{width:min(520px,92vw);max-height:62vh;overflow:auto}
+  .mrow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+  .mrow .mt{flex:1}.mrow .bar{margin-top:6px}.mrow>small{text-align:right;opacity:.85;white-space:nowrap}
+  .mrow.done b{color:#7CFC9a}.mrow.lockA{opacity:.55}
+  #toast{position:fixed;left:50%;top:70px;transform:translate(-50%,-20px);opacity:0;transition:opacity .3s,transform .3s;background:var(--panel);border:1px solid var(--acc);border-radius:12px;padding:10px 20px;z-index:40;pointer-events:none;text-align:center;box-shadow:0 6px 24px #0008}
+  #toast.on{opacity:1;transform:translate(-50%,0)}
+  #toast small{display:block;color:var(--acc);margin-top:2px}
 </style>
 </head>
 <body>
@@ -159,6 +176,10 @@
     <button class="main" id="bStart">리그 도전 (Enter)</button>
     <button id="bGarage">차고 · 업그레이드</button>
   </div>
+  <div class="row">
+    <button id="bMissions">미션 · 업적</button>
+    <button id="bSettings">설정</button>
+  </div>
   <div class="help">
     <b>←  →</b> 이동 (길게 누르면 <b>드리프트</b>) &nbsp; <b>↑</b> 가속 &nbsp; <b>↓</b> 감속 &nbsp; <b>Space</b> 점프<br>
     <b>Q</b> 부스트 &nbsp; <b>W</b> 방어막 &nbsp; <b>E</b> 코인 자석 &nbsp; <b>R</b> 폭탄 &nbsp; (모바일은 화면 버튼)<br>
@@ -170,6 +191,7 @@
 
 <div id="league" class="ov hidden">
   <h2>리그 선택</h2>
+  <div class="diffrow"><span>난이도</span><div class="seg" id="lgDiff"></div></div>
   <div id="lgList"></div>
   <div class="row"><button id="bLgBack">← 허브로</button></div>
 </div>
@@ -202,10 +224,37 @@
   <div class="pmenu">
     <button class="main" id="bResume">계속하기 (Esc)</button>
     <button id="bRestart">처음부터 다시</button>
+    <button id="bPSet">설정</button>
     <button id="bQuit">나가기 (허브로)</button>
   </div>
   <p style="opacity:.7;font-size:13px">다시 하거나 나가면 이번 레이스 보상은 받지 않아요.</p>
 </div>
+
+<div id="settings" class="ov hidden">
+  <h2>설정</h2>
+  <div class="card setc">
+    <div class="srow2"><span>효과음</span><input type="range" id="vSfx" min="0" max="100"><b id="vSfxT"></b></div>
+    <div class="srow2"><span>배경음악</span><input type="range" id="vMus" min="0" max="100"><b id="vMusT"></b></div>
+    <div class="srow2"><span>난이도</span><div class="seg" id="sDiff"></div></div>
+    <div class="srow2"><span>그래픽</span><div class="seg" id="sQual"></div></div>
+    <div class="srow2"><span>진동 (모바일)</span><div class="seg" id="sVib"></div></div>
+    <div class="rsec">조작</div>
+    <div class="keys">← → 이동 (길게: 드리프트) · ↑ 가속 · ↓ 감속 · Space 점프 · Q W E R 아이템 · Esc / P 일시정지</div>
+    <button id="bReset" class="danger">저장 기록 초기화</button>
+  </div>
+  <button class="main" id="bSetBack">돌아가기 (Esc)</button>
+</div>
+
+<div id="missions" class="ov hidden">
+  <h2>미션 · 업적</h2>
+  <div class="card mcard">
+    <div class="rsec">오늘의 미션 <small id="mDate"></small></div><div id="mDaily"></div>
+    <div class="rsec">업적 <small id="aCount"></small></div><div id="mAch"></div>
+  </div>
+  <button class="main" id="bMisBack">돌아가기 (Esc)</button>
+</div>
+
+<div id="toast"><b></b><small></small></div>
 
 <div id="cfm" class="ov hidden">
   <div class="card cfmc"><p id="cfmMsg"></p>
@@ -225,11 +274,11 @@ const PL=4.2, PWID=2.0, SPAWN_Z=-170, SC_LEN=260, ZN=9.1;
 const KEY='turboRacerSave1';
 const defSave=()=>({gold:0,best:0,rp:0,tickets:0,parts:{e:0,t:0,n:0,s:0},
   owned:['c_red','c_blue','s_none','w_none','n_none','h_sil'],eq:{c:'c_red',s:'s_none',w:'w_none',n:'n_none',h:'h_sil'},
-  cars:['rookie'],car:'rookie',up:{rookie:{e:0,t:0,n:0,s:0}},cleared:{},bestT:{},races:0,decal:'',decalPos:'both',photoColor:''});
+  cars:['rookie'],car:'rookie',up:{rookie:{e:0,t:0,n:0,s:0}},cleared:{},bestT:{},races:0,decal:'',decalPos:'both',photoColor:'',set:{sfx:.8,mus:.6,qual:'high',vib:true},diff:'normal',daily:null,stats:{pass:0,near:0,drift:0,coin:0,fin:0,win:0,flaw:0,jump:0},ach:{}});
 let save=defSave();
 try{const j=JSON.parse(localStorage.getItem(KEY));if(j){const d=defSave();save=Object.assign(d,j);
   save.eq=Object.assign(d.eq,j.eq||{});save.parts=Object.assign(d.parts,j.parts||{});save.up=Object.assign(d.up,j.up||{});
-  save.cleared=j.cleared||{};save.bestT=j.bestT||{};save.cars=j.cars||['rookie'];
+  save.cleared=j.cleared||{};save.bestT=j.bestT||{};save.cars=j.cars||['rookie'];save.set=Object.assign(d.set,j.set||{});save.stats=Object.assign(d.stats,j.stats||{});save.ach=j.ach||{};
   for(const id of ['n_none','h_sil'])if(!save.owned.includes(id))save.owned.push(id);}}catch(e){}
 const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(save));}catch(e){}};
 
@@ -382,6 +431,19 @@ const FACES=[
  {c:[1,0,2,3],k:.95},  // -z (앞면)
 ];
 const BP=[];for(let i=0;i<8;i++)BP.push([0,0,0,0]);
+/* ---- 조명: 면의 실제 방향(회전 반영)으로 밝기 계산 ---- */
+const FN=[[1,0,0],[-1,0,0],[0,1,0],[0,0,1],[0,0,-1]];
+const LDIR=(()=>{const l=[.4,.75,.55],m=Math.hypot(l[0],l[1],l[2]);return l.map(v=>v/m);})();
+function rotV(T,x,y,z){
+  if(T.cz!==1||T.sz!==0){const nx=x*T.cz-y*T.sz;y=x*T.sz+y*T.cz;x=nx;}
+  if(T.cy!==1||T.sy!==0){const nx=x*T.cy+z*T.sy;z=-x*T.sy+z*T.cy;x=nx;}
+  return [x,y,z];
+}
+const shadeK=(T,f)=>{const n=rotV(T,FN[f][0],FN[f][1],FN[f][2]);return .45+.6*Math.max(0,n[0]*LDIR[0]+n[1]*LDIR[1]+n[2]*LDIR[2]);};
+const BW=[];for(let i=0;i<8;i++)BW.push([0,0,0]);
+const lerp3=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
+const dist3=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]);
+
 function drawBox(T,px,py,pz,w,h,d,rgb,o){
   o=o||{};
   const hx=w/2,hy=h/2,hz=d/2;let depthSum=0;
@@ -389,7 +451,7 @@ function drawBox(T,px,py,pz,w,h,d,rgb,o){
     const c=CORN[i];let x=px+c[0]*hx*(o.tw&&c[1]>0?o.tw:1),y=py+c[1]*hy-(o.sl&&c[1]>0&&c[2]<0?o.sl:0),z=pz+c[2]*hz;
     if(T.cz!==1||T.sz!==0){const nx=x*T.cz-y*T.sz;y=x*T.sz+y*T.cz;x=nx;}
     if(T.cy!==1||T.sy!==0){const nx=x*T.cy+z*T.sy;z=-x*T.sy+z*T.cy;x=nx;}
-    x+=T.X;y+=T.Y;z+=T.Z;
+    x+=T.X;y+=T.Y;z+=T.Z;BW[i][0]=x;BW[i][1]=y;BW[i][2]=z;
     const ok=proj(x,y,z);BP[i][0]=P[0];BP[i][1]=P[1];BP[i][2]=P[2];BP[i][3]=ok?1:0;depthSum+=P[2];
   }
   const depth=depthSum/8;
@@ -398,12 +460,14 @@ function drawBox(T,px,py,pz,w,h,d,rgb,o){
     if(!BP[c[0]][3]||!BP[c[1]][3]||!BP[c[2]][3]||!BP[c[3]][3])continue;
     const a=BP[c[0]],b=BP[c[1]],cc=BP[c[2]],dd=BP[c[3]];
     const area=(a[0]*b[1]-b[0]*a[1])+(b[0]*cc[1]-cc[0]*b[1])+(cc[0]*dd[1]-dd[0]*cc[1])+(dd[0]*a[1]-a[0]*dd[1]);
-    if(area>=0)continue;
-    ctx.fillStyle=lit(rgb,FACES[f].k*(o.k||1),depth,o.emis);
+    if(area>=0)continue;   // 뒤를 향한 면은 그리지 않음
+    if(o.top&&f!==2)continue; // 위에 얹는 장식은 윗면만
+    const fill=o.fillRGB?lit(o.fillRGB,shadeK(T,f)*(o.k||1),depth,o.emis):lit(rgb,shadeK(T,f)*(o.k||1),depth,o.emis);
+    if(o.out){pushFace(o.out,c,fill,o,f);continue;}
+    ctx.fillStyle=fill;
     ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.lineTo(cc[0],cc[1]);ctx.lineTo(dd[0],dd[1]);ctx.closePath();ctx.fill();
     if(o.stroke&&depth<90){ctx.strokeStyle='rgba(0,0,0,.28)';ctx.lineWidth=1;ctx.stroke();}
-    if(o.img&&f===2&&decalImg&&depth<120)drawDecal(a,b,cc,dd);
-    if(o.win&&f!==2&&depth<150){
+    if(o.win&&f!==2&&depth<(save.set.qual==='low'?60:150)){
       const cols=f===3?o.win.cols:o.win.dcols,rows=o.win.rows;
       for(let r=0;r<rows;r++)for(let cI=0;cI<cols;cI++){
         const litW=hrand(o.win.seed,f*50+cI,r)<.45;
@@ -416,48 +480,88 @@ function drawBox(T,px,py,pz,w,h,d,rgb,o){
     }
   }
 }
+/* 면을 그리지 않고 목록에 모음 → 나중에 거리순으로 정렬해서 그림 (먼 것부터) */
+function pushFace(out,c,fill,o,f){
+  const W=[BW[c[0]].slice(),BW[c[1]].slice(),BW[c[2]].slice(),BW[c[3]].slice()];
+  const Sx=[BP[c[0]].slice(),BP[c[1]].slice(),BP[c[2]].slice(),BP[c[3]].slice()];
+  const fd=(Sx[0][2]+Sx[1][2]+Sx[2][2]+Sx[3][2])/4,bias=o.ov?.25:0,al=o.alpha||1;
+  // 긴 면은 잘게 나눠서 정렬 정확도를 높임 (가까운 차만)
+  const lab=dist3(W[0],W[1]),lbc=dist3(W[1],W[2]);let n=1,along=0;
+  if(fd<70){if(lab>=lbc&&lab>1.1){n=Math.ceil(lab/.7);along=0;}else if(lbc>1.1){n=Math.ceil(lbc/.7);along=1;}}
+  if(n===1)out.push({d:fd-bias,q:Sx,fill,a:al,e:[1,1,1,1],st:o.stroke});
+  else{
+    const A=along?W[1]:W[0],B=along?W[2]:W[1],C=along?W[3]:W[2],D=along?W[0]:W[3];
+    for(let i=0;i<n;i++){
+      const u0=i/n,u1=(i+1)/n,pts=[lerp3(A,B,u0),lerp3(A,B,u1),lerp3(D,C,u1),lerp3(D,C,u0)],q=[];let dd=0,ok=true;
+      for(const p of pts){if(!proj(p[0],p[1],p[2])){ok=false;break;}q.push([P[0],P[1],P[2]]);dd+=P[2];}
+      if(ok)out.push({d:dd/4-bias,q,fill,a:al,e:[1,i===n-1,1,i===0],st:o.stroke});
+    }
+  }
+  if(o.img&&f===2&&decalImg&&fd<120)out.push({d:fd-bias-.3,decal:Sx});
+}
+function drawQueue(out){
+  out.sort((x,y)=>y.d-x.d);
+  const ga=ctx.globalAlpha;
+  for(const it of out){
+    if(it.glow){glow.apply(null,it.glow);continue;}
+    if(it.decal){const s=it.decal;drawDecal(s[0],s[1],s[2],s[3]);continue;}
+    const q=it.q;ctx.globalAlpha=ga*it.a;
+    ctx.fillStyle=it.fill;ctx.beginPath();ctx.moveTo(q[0][0],q[0][1]);ctx.lineTo(q[1][0],q[1][1]);ctx.lineTo(q[2][0],q[2][1]);ctx.lineTo(q[3][0],q[3][1]);ctx.closePath();ctx.fill();
+    if(it.a===1){ctx.strokeStyle=it.fill;ctx.lineWidth=.8;ctx.stroke();}   // 조각 사이 이음새 메우기
+    if(it.st&&it.d<90){ctx.strokeStyle='rgba(0,0,0,.3)';ctx.lineWidth=1;ctx.beginPath();
+      for(let i=0;i<4;i++){if(!it.e[i])continue;const p=q[i],r=q[(i+1)%4];ctx.moveTo(p[0],p[1]);ctx.lineTo(r[0],r[1]);}ctx.stroke();}
+  }
+  ctx.globalAlpha=ga;
+}
 const T0=()=>({X:0,Y:0,Z:0,cy:1,sy:0,cz:1,sz:0});
 function mkT(X,Z,rotY,rotZ){return{X,Y:0,Z,cy:Math.cos(rotY||0),sy:Math.sin(rotY||0),cz:Math.cos(rotZ||0),sz:Math.sin(rotZ||0)};}
 
 /* ================= 자동차 파츠 ================= */
-const GLASS=[16,26,44],DARK=[24,24,30],TIRE=[14,14,18],RIM=[205,210,222],HEAD=[255,242,192],TAIL=[255,42,42],WHITE=[245,245,245];
+const GLASS=[16,26,44],GLASS_SEE=[80,120,160],DARK=[24,24,30],TIRE=[14,14,18],RIM=[205,210,222],HEAD=[255,242,192],TAIL=[255,42,42],WHITE=[245,245,245];
+const SEAT=[46,46,56],FLOOR=[26,26,32];
 const MODELS={
  rookie:{bodyY:.57,bodyH:.5,cabH:.5,wh:.84,w:2},
  sport:{bodyY:.5,bodyH:.42,cabH:.4,wh:.8,w:2.05},
  suv:{bodyY:.75,bodyH:.7,cabH:.62,wh:1.0,w:2.1},
  super:{bodyY:.46,bodyH:.38,cabH:.34,wh:.78,w:2.15},
 };
+/* 파츠 규칙: 서로 파고들지 않게 맞닿게 배치 / 장식(ov)은 본체 면보다 나중에 그림 / 유리(gl)는 반투명, 안쪽(inn)에 좌석 */
 function carParts(o){
-  const parts=[];const add=(x,y,z,w,h,d,c,e)=>{const q={x,y,z,w,h,d,c,e};parts.push(q);return q;};
+  const parts=[];const add=(x,y,z,w,h,d,c,e)=>{const q={x,y,z,w,h,d,c,e,ov:!!e};parts.push(q);return q;};
   const dHood=o.decal==='hood'||o.decal==='both',dRoof=o.decal==='roof'||o.decal==='both';
+  const wheel=(x,y,z,wd,hh,rim,out)=>{add(x,y,z,wd,hh,hh,TIRE);add(x+out*(wd/2+.012),y,z,.02,hh*.62,hh*.62,rim).ov=true;};
   if(o.truck){
     const cab=hexRGB(o.color);
     add(0,.55,0,2.3,.5,7.8,DARK);
-    for(const sx of [-1,1])for(const sz of [-3.1,1.6,3.0])add(sx*1.15,.48,sz,.34,.96,.96,TIRE);
-    add(0,1.5,-3.1,2.2,1.7,1.7,cab);add(0,1.9,-3.97,2.0,.7,.1,GLASS);
-    add(0,2.0,1.1,2.6,2.7,5.8,[217,221,230]);
-    for(const z of [-.5,.7,1.9,3.1])add(0,2.0,z,2.64,.08,.14,[170,176,190]);
-    add(-.8,.9,3.97,.5,.18,.1,TAIL,true);add(.8,.9,3.97,.5,.18,.1,TAIL,true);
+    for(const sx of [-1,1])for(const sz of [-3.1,1.6,3.0])wheel(sx*1.32,.48,sz,.34,.96,[150,155,165],sx);
+    add(0,1.65,-3.1,2.2,1.7,1.6,cab);add(0,2.05,-3.91,2.0,.7,.02,GLASS).ov=true;
+    add(0,2.35,1.05,2.6,2.7,5.9,[217,221,230]);
+    for(const z of [-.5,.7,1.9,3.1])add(0,2.35,z,2.62,.08,.14,[170,176,190]).ov=true;
+    add(-.8,.6,3.94,.5,.18,.08,TAIL,true);add(.8,.6,3.94,.5,.18,.08,TAIL,true);
     return parts;
   }
   if(o.model==='wedge'){
     const B=hexRGB(o.color),rim=o.rim?hexRGB(o.rim):RIM,L=4.4,hw=1.06;
     add(0,.3,0,2.0,.16,4.2,DARK);
-    for(const sx of [-1,1])for(const sz of [-1.45,1.45]){add(sx*hw,.42,sz,.36,.84,.84,TIRE);add(sx*(hw+.19),.42,sz,.03,.56,.56,rim);}
-    add(0,.36,0,2.14,.16,4.3,DARK);
+    for(const sx of [-1,1])for(const sz of [-1.45,1.45])wheel(sx*(hw+.18),.42,sz,.36,.84,rim,sx);
+    add(0,.36,0,2.12,.16,4.3,DARK);
     const body=add(0,.55,0,2.12,.5,L,B);body.sl=.28;
-    const glass=add(0,1.02,.45,1.86,.46,2.7,GLASS);glass.sl=.5;glass.tw=.78;
-    add(0,.84,1.95,2.06,.12,.5,B).img=dRoof;
-    const hood=add(0,.583,-1.55,1.9,.06,1.3,B);hood.sl=.083;hood.img=dHood;
-    add(0,.56,-2.21,1.9,.05,.05,HEAD,true);add(0,.78,2.21,1.9,.06,.05,TAIL,true);
+    // 실내 (유리 안쪽)
+    add(0,.76,.6,1.6,.02,2.0,FLOOR).inn=true;
+    for(const sx of [-.42,.42])add(sx,.93,.55,.5,.32,.45,SEAT).inn=true;
+    add(0,.92,1.25,1.4,.3,.4,SEAT).inn=true;
+    const glass=add(0,1.0,.45,1.86,.46,2.7,GLASS);glass.sl=.5;glass.tw=.78;glass.gl=true;
+    add(0,.86,1.95,2.06,.12,.5,B).img=dRoof;
+    const hood=add(0,.585,-1.55,1.9,.06,1.3,B);hood.sl=.083;hood.img=dHood;
+    add(0,.56,-2.225,1.9,.05,.05,HEAD,true);add(0,.78,2.225,1.9,.06,.05,TAIL,true);
     if(o.stripe==='center'||o.stripe==='side'){
       const xs=o.stripe==='center'?[-.18,.18]:[-.78,.78],w=o.stripe==='center'?.16:.12;
-      for(const x of xs){const s=add(x,.556,0,w,.512,L,WHITE,true);s.sl=.28;}
+      for(const x of xs){const s=add(x,.556,0,w,.512,L,WHITE,true);s.sl=.28;s.top=true;}
     }else if(o.stripe==='flame'){
       for(const sx of [-1,1]){add(sx*(hw+.012),.42,-.9,.02,.2,1.8,[255,140,26],true);add(sx*(hw+.014),.46,-.6,.02,.1,1.0,[255,225,74],true);add(sx*(hw+.012),.58,-1.5,.02,.14,.8,[255,140,26],true);}
     }
     if(o.spoiler==='wing'||o.spoiler==='big'){
-      const big=o.spoiler==='big',sp=[B[0]*.5,B[1]*.5,B[2]*.5],tt=.9;
+      const big=o.spoiler==='big',sp=[B[0]*.5,B[1]*.5,B[2]*.5],tt=.92;
       for(const sx of [-1,1])add(sx*.62,tt+(big?.25:.15),1.95,.09,big?.5:.3,.12,DARK);
       add(0,tt+(big?.55:.3),1.95,big?2.3:1.95,big?.1:.07,big?.7:.45,sp);
       if(big)for(const sx of [-1,1])add(sx*1.15,tt+.55,1.95,.06,.3,.7,DARK);
@@ -465,17 +569,26 @@ function carParts(o){
     return parts;
   }
   const m=MODELS[o.model||'rookie']||MODELS.rookie,B=hexRGB(o.color),rim=o.rim?hexRGB(o.rim):RIM;
-  const bodyTop=m.bodyY+m.bodyH/2,hoodY=bodyTop+.03,cabY=bodyTop+m.cabH/2-.02,roofY=cabY+m.cabH/2+.04,hw=m.w/2;
+  const bodyTop=m.bodyY+m.bodyH/2,hw=m.w/2;
+  const hoodY=bodyTop+.05,cabY=bodyTop+m.cabH/2,roofY=cabY+m.cabH/2+.04;   // 보닛·캐빈은 차체 윗면에 딱 붙게
   add(0,.28,0,m.w-.1,.15,4.0,DARK);
-  for(const sx of [-1,1])for(const sz of [-1.4,1.4]){add(sx*hw,m.wh/2,sz,.34,m.wh,m.wh,TIRE);add(sx*(hw+.18),m.wh/2,sz,.03,m.wh*.62,m.wh*.62,rim);}
-  add(0,m.bodyY,0,m.w,m.bodyH,4.2,B);add(0,hoodY,-1.3,m.w-.1,.1,1.5,B).img=dHood;add(0,hoodY,1.6,m.w-.1,.1,.9,B);
-  add(0,cabY,.3,1.72,m.cabH,2.1,GLASS);add(0,roofY,.3,1.76,.08,1.5,B).img=dRoof;
-  add(0,m.bodyY-.2,-2.1,m.w-.1,.22,.14,DARK);add(0,m.bodyY-.2,2.1,m.w-.1,.22,.14,DARK);
-  for(const sx of [-1,1]){add(sx*.7,m.bodyY+.09,-2.12,.5,.15,.1,HEAD,true);add(sx*.68,m.bodyY+.13,2.12,.55,.13,.1,TAIL,true);}
+  for(const sx of [-1,1])for(const sz of [-1.4,1.4])wheel(sx*(hw+.17),m.wh/2,sz,.34,m.wh,rim,sx);   // 바퀴는 차체 바깥에
+  add(0,m.bodyY,0,m.w,m.bodyH,4.2,B);
+  add(0,hoodY,-1.3,m.w-.1,.1,1.5,B).img=dHood;add(0,hoodY,1.6,m.w-.1,.1,.9,B);
+  // 실내 (유리 안쪽)
+  const sh=Math.min(.42,m.cabH*.8);
+  add(0,bodyTop+.01,.3,1.6,.02,2.0,FLOOR).inn=true;
+  for(const sx of [-.42,.42])add(sx,bodyTop+sh/2,.0,.5,sh,.45,SEAT).inn=true;
+  add(0,bodyTop+sh/2,.95,1.4,sh*.9,.4,SEAT).inn=true;
+  add(0,bodyTop+.12,-.6,1.6,.24,.22,FLOOR).inn=true;
+  add(0,cabY,.3,1.72,m.cabH,2.1,GLASS).gl=true;
+  add(0,roofY,.3,1.76,.08,1.5,B).img=dRoof;
+  add(0,m.bodyY-.2,-2.17,m.w-.1,.22,.14,DARK);add(0,m.bodyY-.2,2.17,m.w-.1,.22,.14,DARK);
+  for(const sx of [-1,1]){add(sx*.7,m.bodyY+.09,-2.15,.5,.15,.1,HEAD,true);add(sx*.68,m.bodyY+.13,2.15,.55,.13,.1,TAIL,true);}
   const hoodTop=hoodY+.056,roofTop=roofY+.046;
   if(o.stripe==='center'||o.stripe==='side'){
     const xs=o.stripe==='center'?[-.18,.18]:[-.72,.72],w=o.stripe==='center'?.16:.12;
-    for(const x of xs){add(x,hoodTop,-1.3,w,.012,1.5,WHITE,true);add(x,roofTop,.3,w,.012,1.5,WHITE,true);add(x,hoodTop,1.6,w,.012,.9,WHITE,true);}
+    for(const x of xs){add(x,hoodTop,-1.3,w,.012,1.5,WHITE,true).top=true;add(x,roofTop,.3,w,.012,1.5,WHITE,true).top=true;add(x,hoodTop,1.6,w,.012,.9,WHITE,true).top=true;}
   }else if(o.stripe==='flame'){
     for(const sx of [-1,1]){
       add(sx*(hw+.012),m.bodyY-.11,-.9,.02,.2,1.8,[255,140,26],true);add(sx*(hw+.014),m.bodyY-.07,-.6,.02,.1,1.0,[255,225,74],true);
@@ -483,21 +596,31 @@ function carParts(o){
     }
   }
   if(o.spoiler==='wing'||o.spoiler==='big'){
-    const big=o.spoiler==='big',sp=[B[0]*.5,B[1]*.5,B[2]*.5],tt=bodyTop+.08;
+    const big=o.spoiler==='big',sp=[B[0]*.5,B[1]*.5,B[2]*.5],tt=bodyTop+.1;
     for(const sx of [-1,1])add(sx*.62,tt+(big?.25:.15),1.95,.09,big?.5:.3,.12,DARK);
     add(0,tt+(big?.55:.3),1.95,big?2.3:1.95,big?.1:.07,big?.7:.45,sp);
     if(big)for(const sx of [-1,1])add(sx*1.15,tt+.55,1.95,.06,.3,.7,DARK);
   }
   return parts;
 }
+/* 자동차 한 대 = 모든 면을 모아서 먼 면부터 정렬해 그림 (불투명 물체처럼 앞뒤가 맞게 가려짐) */
 function drawCarParts(parts,T,o){
-  for(const p of parts)drawBox(T,p.x,p.y,p.z,p.w,p.h,p.d,p.c,{emis:p.e,stroke:true,img:p.img,sl:p.sl,tw:p.tw});
-  if(o&&o.truck)return;
-  for(const sx of [-1,1]){
-    const lx=sx*.68,lz=2.2;
-    const wx=T.X+lx*T.cy+lz*T.sy,wz=T.Z-lx*T.sy+lz*T.cy;
-    glow(wx,.7+T.Y,wz,.8,[255,40,40],.22+night*.13,.06);
+  proj(T.X,.6+T.Y,T.Z);const near=P[2]<60;
+  const out=[];
+  for(const p of parts){
+    if(p.inn&&!near)continue;                                   // 멀리 있는 차는 실내 생략
+    const see=p.gl&&near;                                       // 가까우면 유리 반투명 + 실내 보임
+    drawBox(T,p.x,p.y,p.z,p.w,p.h,p.d,see?GLASS_SEE:p.c,{emis:p.e,stroke:!p.inn&&!p.top,top:p.top,img:p.img,sl:p.sl,tw:p.tw,ov:p.ov,alpha:see?.5:1,out});
   }
+  // 후미등 불빛: 차 뒤쪽이 카메라를 향할 때만, 다른 면들과 함께 정렬
+  if(!(o&&o.truck)){
+    const rx=T.sy,rz=T.cy,vx=cam.x-T.X,vz=cam.z-T.Z;
+    if(rx*vx+rz*vz>0)for(const sx of [-1,1]){
+      const lx=sx*.68,lz=2.25,wx=T.X+lx*T.cy+lz*T.sy,wz=T.Z-lx*T.sy+lz*T.cy;
+      if(proj(wx,.7+T.Y,wz))out.push({d:P[2]-.4,glow:[wx,.7+T.Y,wz,.8,[255,40,40],.22+night*.13,.06]});
+    }
+  }
+  drawQueue(out);
 }
 
 /* ================= 배경 오브젝트 ================= */
@@ -566,6 +689,154 @@ function drawScenery(o){
   }
 }
 
+/* ================= 사운드 (코드로 직접 합성 · 외부 파일 없음) ================= */
+const AU={ctx:null,want:null,song:null,musTimer:null,step:0,next:0};
+const mf=n=>440*Math.pow(2,(n-69)/12);
+function auInit(){
+  if(AU.ctx){if(AU.ctx.state==='suspended')AU.ctx.resume();return;}
+  const C=window.AudioContext||window.webkitAudioContext;if(!C)return;
+  let c;try{c=AU.ctx=new C();}catch(e){return;}
+  AU.master=c.createGain();AU.master.connect(c.destination);
+  AU.sfx=c.createGain();AU.sfx.connect(AU.master);AU.mus=c.createGain();AU.mus.connect(AU.master);auVol();
+  const o=c.createOscillator(),o2=c.createOscillator();o.type='sawtooth';o2.type='square';
+  const f=c.createBiquadFilter();f.type='lowpass';f.frequency.value=500;const g=c.createGain();g.gain.value=0;
+  o.connect(f);o2.connect(f);f.connect(g);g.connect(AU.sfx);o.start();o2.start();AU.eng=[o,o2];AU.engG=g;AU.engF=f;
+  const len=c.sampleRate,buf=c.createBuffer(1,len,c.sampleRate),d=buf.getChannelData(0);for(let i=0;i<len;i++)d[i]=Math.random()*2-1;AU.noise=buf;
+  if(AU.want)musPlay(AU.want);
+}
+addEventListener('pointerdown',()=>{if(AU.want&&AU.wantKey&&musEl[AU.wantKey]&&musEl[AU.wantKey].paused&&!musBad[AU.wantKey])musEl[AU.wantKey].play().catch(()=>{});});
+addEventListener('keydown',()=>{if(AU.want&&AU.wantKey&&musEl[AU.wantKey]&&musEl[AU.wantKey].paused&&!musBad[AU.wantKey])musEl[AU.wantKey].play().catch(()=>{});});
+function auVol(){for(const k in musEl)musEl[k].volume=Math.min(1,save.set.mus);if(!AU.ctx)return;AU.sfx.gain.value=save.set.sfx;AU.mus.gain.value=save.set.mus*.5;}
+addEventListener('pointerdown',auInit);addEventListener('keydown',auInit);
+function tone(freq,dur,type,vol,slide,when,dest){
+  const c=AU.ctx;if(!c)return;const t=when||c.currentTime,o=c.createOscillator(),g=c.createGain();
+  o.type=type||'square';o.frequency.setValueAtTime(freq,t);if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+dur);
+  g.gain.setValueAtTime(vol||.2,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g);g.connect(dest||AU.sfx);o.start(t);o.stop(t+dur+.03);
+}
+function noise(dur,vol,freq,when,dest,type){
+  const c=AU.ctx;if(!c)return;const t=when||c.currentTime,s=c.createBufferSource(),f=c.createBiquadFilter(),g=c.createGain();
+  s.buffer=AU.noise;f.type=type||'lowpass';f.frequency.value=freq||1200;
+  g.gain.setValueAtTime(vol||.3,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  s.connect(f);f.connect(g);g.connect(dest||AU.sfx);s.start(t);s.stop(t+dur+.03);
+}
+function sfx(n){
+  if(!AU.ctx)return;const t=AU.ctx.currentTime;
+  switch(n){
+    case 'coin':tone(1320,.07,'square',.1,0,t);tone(1760,.1,'square',.1,0,t+.05);break;
+    case 'pass':tone(520,.12,'triangle',.2,900,t);break;
+    case 'near':noise(.25,.25,3000,t,null,'bandpass');tone(900,.15,'sine',.12,1500,t);break;
+    case 'crash':noise(.5,.6,900,t);tone(120,.4,'sawtooth',.35,40,t);break;
+    case 'bump':noise(.15,.3,2000,t);tone(300,.08,'square',.1,180,t);break;
+    case 'boost':tone(200,.6,'sawtooth',.18,900,t);noise(.7,.22,1800,t,null,'bandpass');break;
+    case 'jump':tone(300,.22,'square',.13,750,t);break;
+    case 'land':noise(.12,.25,400,t);break;
+    case 'item':[660,880,1100].forEach((f,i)=>tone(f,.1,'square',.11,0,t+i*.06));break;
+    case 'shield':tone(600,.4,'sine',.2,1200,t);break;
+    case 'bomb':noise(.9,.7,500,t);tone(90,.7,'sawtooth',.4,30,t);break;
+    case 'count':tone(440,.18,'square',.18,0,t);break;
+    case 'go':tone(880,.45,'square',.2,0,t);break;
+    case 'finish':[523,659,784,1046].forEach((f,i)=>tone(f,.25,'square',.16,0,t+i*.12));break;
+    case 'lose':[392,330,262].forEach((f,i)=>tone(f,.3,'triangle',.2,0,t+i*.2));break;
+    case 'ui':tone(700,.04,'square',.06,0,t);break;
+    case 'buy':tone(988,.08,'square',.12,0,t);tone(1319,.2,'square',.12,0,t+.08);break;
+    case 'mission':[784,988,1175,1568].forEach((f,i)=>tone(f,.16,'triangle',.16,0,t+i*.08));break;
+  }
+}
+function engineUpdate(){
+  if(!AU.ctx||!S)return;const c=AU.ctx,on=mode==='play'||mode==='finish'||mode==='count';
+  const sp=S.speed,f=55+sp*3.2+(S.boost>0?40:0);
+  AU.eng[0].frequency.setTargetAtTime(f,c.currentTime,.08);AU.eng[1].frequency.setTargetAtTime(f*.5,c.currentTime,.08);
+  AU.engF.frequency.setTargetAtTime(350+sp*25,c.currentTime,.1);
+  AU.engG.gain.setTargetAtTime(on?.04+Math.min(sp,60)*.001:0,c.currentTime,.1);
+}
+const SONGS={
+  menu:{bpm:96,root:57,bass:[0,,,0,,,7,,5,,,5,,,3,,],lead:[12,,15,,19,,15,,12,,15,,17,,15,,],kick:[1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],hat:[0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],every:true},
+  race:{bpm:132,root:45,bass:[0,0,12,0,0,0,12,0,3,3,15,3,5,5,17,7],lead:[24,,22,,19,,22,24,,27,,24,22,,19,,],kick:[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],hat:[0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,1]},
+};
+// ▼ 배경음악 파일 (index.html 옆 bgm 폴더). 파일이 없거나 못 읽으면 코드로 만든 음악이 대신 나와요.
+const MUSIC_SRC={menu:'bgm/theme.mp3',race0:'bgm/city.mp3',race1:'bgm/sunset.mp3',race2:'bgm/neon.mp3',race3:'bgm/champion.mp3'};
+const musEl={},musBad={};
+function musFile(key,restart){
+  for(const k in musEl)if(k!==key)musEl[k].pause();
+  if(!musEl[key]){const a=new Audio(MUSIC_SRC[key]);a.loop=true;a.preload='auto';
+    a.onerror=()=>{musBad[key]=true;if(AU.wantKey===key)musPlay(AU.want);};musEl[key]=a;}
+  const a=musEl[key];a.volume=Math.min(1,save.set.mus);
+  if(restart)try{a.currentTime=0;}catch(e){}
+  if(a.paused)a.play().catch(()=>{});
+}
+function musPlay(name,restart){AU.want=name;
+  const key=name==='race'?'race'+TR.id:name;AU.wantKey=key;
+  if(MUSIC_SRC[key]&&!musBad[key]){if(AU.musTimer){clearInterval(AU.musTimer);AU.musTimer=null;}AU.song=null;musFile(key,restart);return;}
+  for(const k in musEl)musEl[k].pause();
+  if(!AU.ctx)return;if(AU.song===name&&AU.musTimer)return;
+  AU.song=name;AU.step=0;AU.next=AU.ctx.currentTime+.05;if(!AU.musTimer)AU.musTimer=setInterval(musTick,25);}
+function musStop(){AU.want=null;AU.song=null;for(const k in musEl)musEl[k].pause();if(AU.musTimer){clearInterval(AU.musTimer);AU.musTimer=null;}}
+function musTick(){
+  const c=AU.ctx;if(!c||!AU.song)return;const sg=SONGS[AU.song],sp=60/sg.bpm/4,root=sg.root+(AU.song==='race'?([0,2,-2,5][TR.id]||0):0);
+  if(AU.next<c.currentTime-.2)AU.next=c.currentTime+.02;
+  while(AU.next<c.currentTime+.12){
+    const i=AU.step%16,t=AU.next;
+    if(sg.kick[i])tone(110,.18,'sine',.5,40,t,AU.mus);
+    if(sg.hat[i])noise(.04,.12,8000,t,AU.mus,'highpass');
+    if(sg.bass[i]!==undefined)tone(mf(root+sg.bass[i]),sp*.9,'triangle',.28,0,t,AU.mus);
+    if(sg.lead[i]!==undefined&&(sg.every||(AU.step>>4)%2===1))tone(mf(root+12+sg.lead[i]),sp*1.6,'square',.06,0,t,AU.mus);
+    AU.next+=sp;AU.step++;
+  }
+}
+const vib=ms=>{if(save.set.vib&&navigator.vibrate)try{navigator.vibrate(ms);}catch(e){}};
+
+/* ================= 난이도 ================= */
+const DIFFS={easy:{name:'쉬움',traffic:.7,rival:.92,inv:1,rew:.8},normal:{name:'보통',traffic:1,rival:1,inv:0,rew:1},hard:{name:'어려움',traffic:1.3,rival:1.08,inv:-.5,rew:1.3}};
+const DF=()=>DIFFS[save.diff]||DIFFS.normal;
+
+/* ================= 일일 미션 · 업적 ================= */
+const MISSIONS=[
+ {id:'pass30',t:'차 30대 추월하기',goal:30,k:'pass',rew:100},
+ {id:'near5',t:'니어미스 5번',goal:5,k:'near',rew:100},
+ {id:'drift1500',t:'드리프트 점수 1500 모으기',goal:1500,k:'drift',rew:120},
+ {id:'coin40',t:'코인 40개 모으기',goal:40,k:'coin',rew:80},
+ {id:'fin3',t:'레이스 3번 완주',goal:3,k:'fin',rew:120},
+ {id:'pod1',t:'3위 안에 들기',goal:1,k:'pod',rew:150},
+ {id:'flaw1',t:'한 번도 안 부딪히고 완주',goal:1,k:'flaw',rew:150},
+ {id:'jump10',t:'점프 10번 하기',goal:10,k:'jump',rew:80},
+ {id:'item5',t:'아이템 5번 쓰기',goal:5,k:'item',rew:80},
+];
+const ACHS=[
+ {id:'first_fin',t:'첫 완주',d:'레이스를 처음 완주하기',chk:s=>s.fin>=1,rew:{cr:100}},
+ {id:'first_win',t:'첫 우승',d:'1등으로 들어오기',chk:s=>s.win>=1,rew:{tk:1}},
+ {id:'pass100',t:'추월왕',d:'누적 추월 100대',chk:s=>s.pass>=100,rew:{cr:200}},
+ {id:'near50',t:'아슬아슬',d:'누적 니어미스 50회',chk:s=>s.near>=50,rew:{cr:200}},
+ {id:'drift1e4',t:'드리프트 장인',d:'누적 드리프트 10,000점',chk:s=>s.drift>=10000,rew:{cr:250}},
+ {id:'flawless',t:'무결점',d:'한 번도 안 부딪히고 완주',chk:s=>s.flaw>=1,rew:{cr:150}},
+ {id:'champ',t:'챔피언',d:'챔피언 로드 3위 이내',chk:()=>!!save.cleared[3],rew:{tk:2}},
+ {id:'collector',t:'컬렉터',d:'차량 3대 보유',chk:()=>save.cars.length>=3,rew:{cr:300}},
+ {id:'maxup',t:'풀튜닝',d:'성능 하나를 Lv.5까지 강화',chk:()=>Object.values(save.up).some(u=>Object.values(u).some(v=>v>=5)),rew:{cr:300}},
+ {id:'artist',t:'아티스트',d:'내 이미지 올리기',chk:()=>!!save.decal,rew:{cr:50}},
+];
+const rewText=r=>r.cr?`+${r.cr} CR`:`해금권 +${r.tk}`;
+function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function ensureDaily(){
+  const t=today();if(save.daily&&save.daily.date===t)return;
+  let h=0;for(const ch of t)h=(h*31+ch.charCodeAt(0))>>>0;
+  const ids=[];while(ids.length<3){h=(Math.imul(h,1103515245)+12345)>>>0;const id=MISSIONS[(h>>>8)%MISSIONS.length].id;if(!ids.includes(id))ids.push(id);}
+  save.daily={date:t,ids,prog:{},done:{}};persist();
+}
+function applyDaily(ev){
+  ensureDaily();const d=save.daily,got=[];
+  for(const id of d.ids){if(d.done[id])continue;const m=MISSIONS.find(x=>x.id===id);
+    d.prog[id]=(d.prog[id]||0)+(ev[m.k]||0);if(d.prog[id]>=m.goal){d.done[id]=true;save.gold+=m.rew;got.push(m);}}
+  persist();return got;
+}
+function toast(a,b){const el=$('toast');el.querySelector('b').textContent=a;el.querySelector('small').textContent=b||'';
+  el.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('on'),1500);}
+function checkAch(){
+  const got=[];
+  for(const a of ACHS){if(save.ach[a.id])continue;if(a.chk(save.stats)){save.ach[a.id]=1;if(a.rew.cr)save.gold+=a.rew.cr;if(a.rew.tk)save.tickets+=a.rew.tk;got.push(a);}}
+  if(got.length){persist();sfx('mission');got.forEach((a,i)=>setTimeout(()=>toast('업적 달성: '+a.t,rewText(a.rew)),i*1700));}
+  return got;
+}
+
 /* ================= 게임 상태 ================= */
 let mode='title',S=null,last=performance.now(),scroll=0,gAng=0,cycSpd=1,TR=LEAGUES[0],selLeague=0,cdLast=4,gtab='up';
 const RIVALS=['VIPER','NOVA','DRIFT','BLAZE','REX'];
@@ -579,12 +850,12 @@ rebuildPlayer();
 
 function newRun(tr){
   popsEl.innerHTML='';TR=tr||TR;
-  const st=stats();
+  const st=stats();st.inv=Math.max(1,st.inv+DF().inv);
   S={px:0,speed:0,time:0,dist:0,score:0,lives:3,gold:0,inv:0,boost:0,shield:false,magnet:0,
      cars:[],coins:[],boxes:[],parts:[],pops:[],lines:[],spawnT:.5,coinT:2,boxT:3.5,combo:0,comboT:0,shake:0,rank:6,
      bag:{q:st.startBoost,w:0,e:0,r:0},tilt:0,steerT:0,lastDir:0,drift:0,driftPts:0,driftBank:0,nearN:0,nearPts:0,passN:0,st,
-     cd:3.99,finT:0,jy:0,jv:0,jcd:0,bumpT:0,fin:false,dnf:false,finTime:0,mk:[],
-     rivals:RIVALS.map((n,i)=>({n,i,dist:6+i*6,base:(22+rnd(9))*TR.rival,ph:rnd(6),fin:0,x:0,z:0,
+     cd:3.99,finT:0,hits:0,itemsUsed:0,jumps:0,jy:0,jv:0,jcd:0,bumpT:0,fin:false,dnf:false,finTime:0,mk:[],
+     rivals:RIVALS.map((n,i)=>({n,i,dist:6+i*6,base:(22+rnd(9))*TR.rival*DF().rival,ph:rnd(6),fin:0,x:0,z:0,
        parts:carParts({color:RCOL[i],model:'sport',rim:'#e8e8e8',stripe:'center'})})),
      ghost:save.bestT[TR.id]?{v:TR.len/save.bestT[TR.id],x:1.5,z:0,parts:carParts(look())}:null};
   for(let i=0;i<70;i++)S.lines.push({x:rnd(30)-15,y:.4+rnd(7),z:-80+rnd(95)});
@@ -606,6 +877,7 @@ function bannerMsg(t){const m=$('msg');m.textContent=t;m.style.opacity=1;clearTi
 const keys={};
 addEventListener('keydown',e=>{
   if(!$('cfm').classList.contains('hidden')){if(e.key==='Escape')$('cfmNo').click();else if(e.key==='Enter')$('cfmYes').click();e.preventDefault();return;}
+  {const sub=['settings','missions'].find(id=>!$(id).classList.contains('hidden'));if(sub){if(e.key==='Escape')$(sub==='settings'?'bSetBack':'bMisBack').click();return;}}
   const k=e.key.length===1?e.key.toLowerCase():e.key;
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();
   if(!keys[k]){
@@ -635,11 +907,11 @@ function emit(x,y,z,rgb,n,spd){
 function useItem(k){
   const s=S;if(!s||s.bag[k]<=0)return;
   if(k==='q'&&s.boost>0)return;if(k==='w'&&s.shield)return;
-  s.bag[k]--;
-  if(k==='q'){s.boost=s.st.boostT;pop3(s.px,2.8,0,'BOOST!',ITEMS.q.col);bannerMsg('BOOST!');}
-  if(k==='w'){s.shield=true;pop3(s.px,2.8,0,'방어막!',ITEMS.w.col);}
-  if(k==='e'){s.magnet=8;pop3(s.px,2.8,0,'자석!',ITEMS.e.col);}
-  if(k==='r'){let n=0;
+  s.bag[k]--;s.itemsUsed++;
+  if(k==='q'){sfx('boost');s.boost=s.st.boostT;pop3(s.px,2.8,0,'BOOST!',ITEMS.q.col);bannerMsg('BOOST!');}
+  if(k==='w'){sfx('shield');s.shield=true;pop3(s.px,2.8,0,'방어막!',ITEMS.w.col);}
+  if(k==='e'){sfx('item');s.magnet=8;pop3(s.px,2.8,0,'자석!',ITEMS.e.col);}
+  if(k==='r'){sfx('bomb');vib(150);let n=0;
     for(const c of s.cars){if(!c.dead&&c.z>-120){c.dead=true;n++;emit(c.x,1,c.z,[176,77,255],40,16);emit(c.x,1,c.z,[255,210,63],20,10);s.score+=50;}}
     s.shake=.8;pop3(s.px,2.8,0,n?`폭탄! x${n}`:'폭탄!',ITEMS.r.col);}
 }
@@ -687,17 +959,17 @@ function updRivals(dt){
 function finishRace(){
   const s=S;s.fin=true;s.dist=TR.len;s.finTime=s.time;
   s.rank=1+s.rivals.filter(r=>r.fin>0).length;
-  mode='finish';bannerMsg('FINISH!');
+  mode='finish';bannerMsg('FINISH!');sfx('finish');musStop();
   emit(s.px,2,0,[255,255,255],40,12);
 }
 function doJump(){
   const s=S;if(mode!=='play'||s.jy>0||s.jcd>0)return;
-  s.jv=9.5;s.jy=.001;s.jcd=1.6;pop3(s.px,2.8,0,'점프!','#7CFC9a');
+  s.jv=9.5;s.jy=.001;s.jcd=1.6;s.jumps++;sfx('jump');pop3(s.px,2.8,0,'점프!','#7CFC9a');
 }
 function sideBump(x,z,ox){
   const s=S,dir=s.px>=x?1:-1;
   s.px=clamp(s.px+dir*(ox+.05),-(HALF-1.3),HALF-1.3);
-  if(s.bumpT<=0){s.bumpT=.4;s.speed*=.93;s.shake=Math.max(s.shake,.35);
+  if(s.bumpT<=0){s.bumpT=.4;sfx('bump');vib(40);s.speed*=.93;s.shake=Math.max(s.shake,.35);
     emit((s.px+x)/2,.7,z*.5,[255,220,120],14,7);pop3(s.px,2.6,0,'스침!','#ffd23f');}
 }
 function rivalCollide(){
@@ -711,7 +983,7 @@ function rivalCollide(){
     if(s.boost>0){r.dist=s.dist-6;emit(r.x,1,rz,[255,160,48],30,12);pop3(r.x,2.8,rz,'밀어냄!','#ffd23f');s.shake=.3;continue;}
     if(s.shield){s.shield=false;sep();emit(s.px,1,0,[74,160,255],40,12);pop3(s.px,2.8,0,'방어!',ITEMS.w.col);continue;}
     if(s.inv>0){sep();continue;}
-    s.lives--;s.inv=st.inv;s.shake=1;s.combo=0;s.speed*=st.hitKeep;sep();
+    sfx('crash');vib(200);s.hits++;s.lives--;s.inv=st.inv;s.shake=1;s.combo=0;s.speed*=st.hitKeep;sep();
     emit(s.px,1,0,[255,68,34],60,15);$('flash').style.opacity=1;setTimeout(()=>$('flash').style.opacity=0,120);
     pop3(s.px,2.8,0,r.n+' 충돌!','#ff4d4d');
     if(s.lives<=0){showResults(true);return true;}
@@ -731,7 +1003,7 @@ function playLogic(dt){
   s.speed+=(target-s.speed)*Math.min(1,dt*st.accel);
   const dir=(keys.ArrowRight?1:0)-(keys.ArrowLeft?1:0);
   s.px=clamp(s.px+dir*st.lat*dt,-(HALF-1.3),HALF-1.3);s.tilt+=(dir-s.tilt)*Math.min(1,dt*8);
-  if(s.jy>0||s.jv>0){s.jv-=24*dt;s.jy+=s.jv*dt;if(s.jy<=0){s.jy=0;s.jv=0;emit(s.px,.2,1,[200,200,210],12,4);s.shake=Math.max(s.shake,.2);}}
+  if(s.jy>0||s.jv>0){s.jv-=24*dt;s.jy+=s.jv*dt;if(s.jy<=0){s.jy=0;s.jv=0;sfx('land');emit(s.px,.2,1,[200,200,210],12,4);s.shake=Math.max(s.shake,.2);}}
   s.jcd=Math.max(0,s.jcd-dt);s.bumpT=Math.max(0,s.bumpT-dt);
   // 드리프트: 같은 방향으로 계속 조향하면 발동
   if(dir!==0&&dir===s.lastDir)s.steerT+=dt;else s.steerT=0;s.lastDir=dir;
@@ -745,7 +1017,7 @@ function playLogic(dt){
   s.dist+=s.speed*dt;
   s.inv=Math.max(0,s.inv-dt);s.boost=Math.max(0,s.boost-dt);s.magnet=Math.max(0,s.magnet-dt);s.shake=Math.max(0,s.shake-dt);
   if(s.comboT>0){s.comboT-=dt;if(s.comboT<=0)s.combo=0;}
-  s.spawnT-=dt;if(s.spawnT<=0){spawnCar();s.spawnT=Math.max(.55,1.3-s.time*.006)*(28/Math.max(s.speed,10))/TR.traffic;}
+  s.spawnT-=dt;if(s.spawnT<=0){spawnCar();s.spawnT=Math.max(.55,1.3-s.time*.006)*(28/Math.max(s.speed,10))/(TR.traffic*DF().traffic);}
   s.coinT-=dt;if(s.coinT<=0){spawnCoins();s.coinT=2.5+rnd(2.5);}
   s.boxT-=dt;if(s.boxT<=0){spawnBox();s.boxT=6+rnd(4);}
   moveWorld(dt);
@@ -755,9 +1027,9 @@ function playLogic(dt){
     if(ox>0&&oz>0&&s.jy<.6&&ox<oz&&s.boost<=0){sideBump(c.x,c.z,ox);continue;}
     if(ox>0&&oz>0&&s.jy<.6){
       if(s.boost>0){c.dead=true;emit(c.x,1,c.z,[255,160,48],40,14);s.score+=50;pop3(c.x,2.8,c.z,'+50','#ffd23f');s.shake=.25;}
-      else if(s.shield){s.shield=false;c.dead=true;emit(c.x,1,c.z,[74,160,255],50,14);s.shake=.4;pop3(c.x,2.8,c.z,'방어!',ITEMS.w.col);}
+      else if(s.shield){sfx('shield');s.shield=false;c.dead=true;emit(c.x,1,c.z,[74,160,255],50,14);s.shake=.4;pop3(c.x,2.8,c.z,'방어!',ITEMS.w.col);}
       else if(s.inv<=0){
-        s.lives--;s.inv=st.inv;s.shake=1;c.hit=true;s.combo=0;s.speed*=st.hitKeep;
+        sfx('crash');vib(200);s.hits++;s.lives--;s.inv=st.inv;s.shake=1;c.hit=true;s.combo=0;s.speed*=st.hitKeep;
         c.drift=(c.x>=s.px?1:-1)*9;c.spin=(c.x>=s.px?1:-1)*5;
         emit(s.px,1,0,[255,68,34],70,16);emit(s.px,1,0,[255,210,63],30,10);
         $('flash').style.opacity=1;setTimeout(()=>$('flash').style.opacity=0,120);
@@ -769,18 +1041,18 @@ function playLogic(dt){
     if(!c.passed&&c.z>(c.len+PL)/2+.5){
       c.passed=true;s.combo++;s.comboT=4;s.passN++;
       const pts=(100+Math.min(s.combo-1,9)*20)*(s.boost>0?2:1);
-      s.score+=pts;pop3(c.x,2.4,c.z,`+${pts}`,'#7CFC9a');
+      s.score+=pts;pop3(c.x,2.4,c.z,`+${pts}`,'#7CFC9a');sfx('pass');
       const gap=Math.abs(c.x-s.px)-(c.w+PWID)/2;
-      if(gap<.9){s.nearN++;s.nearPts+=75;s.score+=75;pop3(c.x,3.4,c.z,'NEAR MISS +75','#ffd23f');}
+      if(gap<.9){sfx('near');s.nearN++;s.nearPts+=75;s.score+=75;pop3(c.x,3.4,c.z,'NEAR MISS +75','#ffd23f');}
     }
   }
   for(const c of s.coins){
     if(s.magnet>0){const dx=s.px-c.x,dz=-c.z,d=Math.hypot(dx,dz);if(d<14&&d>.2){c.x+=dx/d*40*dt;c.z+=dz/d*40*dt;}}
-    if(Math.abs(c.x-s.px)<1.4&&Math.abs(c.z)<2){c.got=true;s.gold++;s.score+=10;emit(c.x,1,c.z,[255,210,63],6,5);}
+    if(Math.abs(c.x-s.px)<1.4&&Math.abs(c.z)<2){c.got=true;s.gold++;s.score+=10;sfx('coin');emit(c.x,1,c.z,[255,210,63],6,5);}
   }
   for(const b of s.boxes){
     if(Math.abs(b.x-s.px)<1.6&&Math.abs(b.z)<2.6){
-      b.got=true;const ks=Object.keys(ITEMS).filter(k=>s.bag[k]<3);
+      b.got=true;sfx('item');const ks=Object.keys(ITEMS).filter(k=>s.bag[k]<3);
       if(ks.length){const k=ks[Math.floor(rnd(ks.length))];s.bag[k]++;pop3(b.x,2.8,b.z,`${ITEMS[k].name} 획득!`,ITEMS[k].col);}
       else pop3(b.x,2.8,b.z,'가방 가득!','#aaa');
       emit(b.x,1.2,b.z,[192,140,255],30,9);
@@ -816,7 +1088,7 @@ function drawSky(){
     if(!proj(m.x,m.h-6,m.z))continue;const ty=P[1];const R=cam.F*m.r*.95/dep;
     TRI(bx,ty,bx-R,by,bx+R,by,mc);
   }
-  for(const c of CLOUDS){
+  for(const c of (save.set.qual==='low'?[]:CLOUDS)){
     if(!proj(c.x,c.y,c.z))continue;const rw=cam.F*c.w/P[2]/2,rh=cam.F*c.h/P[2]/2;
     ctx.save();ctx.translate(P[0],P[1]);ctx.scale(rw,rh);
     const g3=ctx.createRadialGradient(0,0,0,0,0,1);
@@ -907,7 +1179,7 @@ function drawPlayerOverlay(s){
 function renderRoad(){
   const s=S;
   drawSky();drawGround();
-  if(night>.2){ctx.globalCompositeOperation='lighter';
+  if(night>.2&&save.set.qual!=='low'){ctx.globalCompositeOperation='lighter';
     for(const o of scenery){if(o.kind!=='lamp'||o.z>ZN-1||o.z<-150)continue;groundGlow(o.x-o.side*2.3,o.z,4,[255,214,140],night*.3);}
     ctx.globalCompositeOperation='source-over';}
   if(night>.15){
@@ -948,7 +1220,7 @@ function renderRoad(){
   }
   ctx.globalCompositeOperation='lighter';
   for(const p of s.parts){
-    if(p.z>ZN||!proj(p.x,p.y,p.z))continue;const k=p.life/p.max,r=Math.max(1,cam.F*p.sz/P[2]);
+    if(p.z>ZN||!proj(p.x,p.y,p.z)||P[2]<3)continue;const k=p.life/p.max,r=Math.min(14,Math.max(1,cam.F*p.sz/P[2]));
     ctx.fillStyle=`rgba(${p.rgb[0]},${p.rgb[1]},${p.rgb[2]},${clamp(k,0,1)})`;ctx.beginPath();ctx.arc(P[0],P[1],r,0,6.283);ctx.fill();
   }
   const op=clamp((s.speed-30)/40,0,.3)+(s.boost>0?.4:0),len=clamp((s.speed-24)*.12,.5,8);
@@ -1036,7 +1308,7 @@ function updatePops(dt){
   S.pops=S.pops.filter(p=>{if(p.life<=0){p.el.remove();return false;}return true;});
 }
 function resize(){
-  DPR=Math.min(window.devicePixelRatio||1,(typeof isTouch!=='undefined'&&isTouch)?1.5:2);VW=innerWidth;VH=innerHeight;
+  DPR=Math.min(window.devicePixelRatio||1,(typeof isTouch!=='undefined'&&isTouch)?1.5:2);if(save.set.qual==='low')DPR=1;VW=innerWidth;VH=innerHeight;
   cv.width=Math.floor(VW*DPR);cv.height=Math.floor(VH*DPR);
   CXO=(mode==='garage'&&VW>700)?-170:0;
 }
@@ -1049,11 +1321,12 @@ function frame(t){
 }
 function frameBody(dt){
   const s=S;
+  engineUpdate();
   if(mode==='pause'){ctx.setTransform(DPR,0,0,DPR,0,0);updateCameraRoad(0);renderRoad();return;}
   if(mode==='count'){
     s.speed=0;s.cd-=dt;const n=Math.ceil(s.cd);
-    if(n!==cdLast&&n>0){cdLast=n;bannerMsg(String(n));}
-    if(s.cd<=0){mode='play';bannerMsg('GO!');}
+    if(n!==cdLast&&n>0){cdLast=n;bannerMsg(String(n));sfx('count');}
+    if(s.cd<=0){mode='play';bannerMsg('GO!');sfx('go');}
     updateHUD();
   }else if(mode==='play'){playLogic(dt);if(mode==='play')updateHUD();}
   else if(mode==='finish'){playLogic(dt);if(mode==='finish')updateHUD();}
@@ -1072,7 +1345,7 @@ function frameBody(dt){
 /* ================= 화면 전환 / 루프 UI ================= */
 function show(id){
   if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
-  for(const x of ['title','league','garage','over','pause'])$(x).classList.toggle('hidden',x!==id);
+  for(const x of ['title','league','garage','over','pause','settings','missions'])$(x).classList.toggle('hidden',x!==id);
   $('hud').classList.toggle('hidden',!!id);
 }
 function cheapestUpgrade(){
@@ -1081,23 +1354,26 @@ function cheapestUpgrade(){
   return best;
 }
 function buildProfile(){
+  ensureDaily();
   const lv=levelOf(save.rp),a=lvStart(lv),b=lvStart(lv+1),c=carDef();
   $('prof').innerHTML=
     `<div class="prow"><b>Lv.${lv}</b><div class="bar" style="flex:1"><i style="width:${(save.rp-a)/(b-a)*100}%"></i></div><small>${save.rp-a} / ${b-a} RP</small></div>`+
     `<div class="prow"><span class="gold">${save.gold} CR</span><span>해금권 <b class="gold">${save.tickets}</b></span><span>부품 엔진 ${save.parts.e} · 타이어 ${save.parts.t} · 니트로 ${save.parts.n} · 서스 ${save.parts.s}</span></div>`+
-    `<div class="prow"><span>현재 차량 <b>${c.name}</b></span><span>성능 <b class="gold">${rating()} PP</b></span><span>완주 ${save.races}회</span></div>`;
+    `<div class="prow"><span>현재 차량 <b>${c.name}</b></span><span>성능 <b class="gold">${rating()} PP</b></span><span>완주 ${save.races}회</span></div>`+
+    `<div class="prow"><span>오늘의 미션 <b class="gold">${save.daily.ids.filter(i=>save.daily.done[i]).length} / 3</b></span><span>업적 ${ACHS.filter(a=>save.ach[a.id]).length} / ${ACHS.length}</span><span>난이도 ${DF().name}</span></div>`;
 }
 let pausedFrom='play';
 function pauseGame(){
   if(mode!=='play'&&mode!=='count')return;
   pausedFrom=mode;mode='pause';for(const k in keys)keys[k]=false;S.shake=0;
-  document.querySelectorAll('#touch button').forEach(b=>b.classList.remove('on'));show('pause');
+  document.querySelectorAll('#touch button').forEach(b=>b.classList.remove('on'));show('pause');musStop();
 }
-function resumeGame(){if(mode!=='pause')return;mode=pausedFrom;show(null);}
+function resumeGame(){if(mode!=='pause')return;mode=pausedFrom;show(null);musPlay('race');}
 function openHub(){
-  mode='title';cycSpd=1;newRun(TR);show('title');buildProfile();resize();
+  musPlay('menu');mode='title';cycSpd=1;newRun(TR);show('title');buildProfile();resize();
 }
 function openLeague(){
+  musPlay('menu');
   mode='league';newRun(TR);show('league');
   if(leagueLock(LEAGUES[selLeague]))selLeague=0;
   let best=0;LEAGUES.forEach((l,i)=>{if(!leagueLock(l))best=i;});
@@ -1105,6 +1381,7 @@ function openLeague(){
   buildLeague();resize();
 }
 function buildLeague(){
+  seg('lgDiff',Object.entries(DIFFS).map(([k,v])=>[k,v.name+(v.rew!==1?' (보상 x'+v.rew+')':'')]),save.diff,k=>{save.diff=k;persist();buildLeague();});
   const box=$('lgList');box.innerHTML='';
   LEAGUES.forEach((l,i)=>{
     const lock=leagueLock(l),bt=save.bestT[l.id];
@@ -1120,7 +1397,7 @@ function buildLeague(){
   });
 }
 function startRace(l){
-  TR=l;selLeague=l.id;newRun(l);cycT=l.cyc;cycSpd=l.spd;mode='count';cdLast=4;show(null);
+  TR=l;selLeague=l.id;musPlay('race',true);newRun(l);cycT=l.cyc;cycSpd=l.spd;mode='count';cdLast=4;show(null);
   $('trk').textContent=`${l.name} · ${l.len}m`;
   const pl=$('pline');pl.innerHTML='';
   const add=(cls,col)=>{const d=document.createElement('i');d.className=cls;if(col)d.style.background=col;pl.appendChild(d);return d;};
@@ -1136,7 +1413,7 @@ function showResults(dnf){
   const crRank=dnf?15:[200,140,100,70,50,30][rank-1],rpRank=dnf?10:[100,70,50,35,25,15][rank-1];
   const crStunt=Math.floor(stunt/40),rpStunt=Math.floor(stunt/25)+Math.floor(TR.len/100);
   const subCr=crRank+s.gold+crStunt,subRp=rpRank+rpStunt;
-  const totCr=Math.round(subCr*TR.mult),totRp=Math.round(subRp*TR.mult);
+  const totCr=Math.round(subCr*TR.mult*DF().rew),totRp=Math.round(subRp*TR.mult*DF().rew);
   const oldLv=levelOf(save.rp);save.rp+=totRp;save.gold+=totCr;const newLv=levelOf(save.rp);
   let tk=(!dnf&&rank===1?1:0)+(newLv-oldLv);save.tickets+=tk;
   let part=null;
@@ -1145,6 +1422,9 @@ function showResults(dnf){
   let newBest=false;
   if(!dnf){const old=save.bestT[TR.id];if(!old||s.finTime<old){save.bestT[TR.id]=s.finTime;newBest=true;}save.races++;}
   const sc=Math.floor(s.score);if(sc>save.best)save.best=sc;
+  const ST=save.stats;ST.pass+=s.passN;ST.near+=s.nearN;ST.drift+=Math.floor(s.driftPts);ST.coin+=s.gold;ST.jump+=s.jumps;
+  if(!dnf){ST.fin++;if(rank===1)ST.win++;if(s.hits===0)ST.flaw++;}
+  const doneM=applyDaily({pass:s.passN,near:s.nearN,drift:Math.floor(s.driftPts),coin:s.gold,fin:dnf?0:1,pod:(!dnf&&rank<=3)?1:0,flaw:(!dnf&&s.hits===0)?1:0,jump:s.jumps,item:s.itemsUsed});
   persist();
   const ord=['1st','2nd','3rd','4th','5th','6th'][rank-1];
   const row=(a,b,c)=>`<div class="rr"><span>${a}</span><span><b>${b}</b>${c||''}</span></div>`;
@@ -1156,19 +1436,25 @@ function showResults(dnf){
     row('추월',s.passN+'대')+row('드리프트 점수',Math.floor(s.driftPts))+row('니어미스',s.nearN+'회 (+'+s.nearPts+')')+
     `<div class="rsec">보상</div>`+
     row(dnf?'완주 실패 위로금':rank+'등 보상','+'+crRank+' CR')+row('코인 '+s.gold+'개','+'+s.gold+' CR')+row('묘기 보너스','+'+crStunt+' CR')+
-    row('리그 배수',`x${TR.mult}`)+
+    row('리그 배수',`x${TR.mult}`)+row('난이도 ('+DF().name+')','x'+DF().rew)+
     row('크레딧 합계','+'+totCr+' CR','')+row('경험치','+'+totRp+' RP')+
     (newLv>oldLv?row('레벨 업!','Lv.'+oldLv+' → Lv.'+newLv,'<em>해금권 +'+(newLv-oldLv)+'</em>'):'')+
     (rank===1&&!dnf?row('우승 보상','차량 해금권 +1'):'')+
-    (part?row('획득 부품',PART_NAMES[part]+' x1'):'');
+    (part?row('획득 부품',PART_NAMES[part]+' x1'):'')+
+    (doneM.length?`<div class="rsec">오늘의 미션</div>`+doneM.map(m=>row('완료: '+m.t,'+'+m.rew+' CR')).join(''):'');
   const cu=cheapestUpgrade(),can=(cu!==null&&save.gold>=cu)||save.tickets>0;
   $('bToGarage').classList.toggle('glow',can);
   show('over');
+  musStop();if(dnf)sfx('lose');else if(!s.fin)sfx('finish');
+  if(doneM.length)setTimeout(()=>{sfx('mission');toast('오늘의 미션 완료!',doneM.map(m=>m.t).join(', '));},700);
+  setTimeout(checkAch,doneM.length?2300:700);
+  setTimeout(()=>{if(mode==='over')musPlay('menu');},1800);
 }
 
 /* ---------- 차고 (성장 단계) ---------- */
 function statBar(label,val,max,txt){return `<div class="srow"><span>${label}</span><div class="bar"><i style="width:${clamp(val/max,0,1)*100}%"></i></div><small>${txt}</small></div>`;}
 function buildGarage(){
+  checkAch();
   const tabs=[['up','성능 업그레이드'],['tune','외형 튜닝'],['car','차량 · 해금']];
   $('gtabs').innerHTML='';
   tabs.forEach(([k,n])=>{const b=document.createElement('button');b.textContent=n;if(gtab===k)b.className='on';b.onclick=()=>{gtab=k;buildGarage();};$('gtabs').appendChild(b);});
@@ -1277,11 +1563,12 @@ function importImage(f){
   rd.readAsDataURL(f);
 }
 function openGarage(tab){
+  musPlay('menu');
   mode='garage';gtab=tab||gtab;newRun(TR);show('garage');buildGarage();resize();
 }
 let cfmYes=null;
 function ask(msg,yes){$('cfmMsg').innerHTML=msg;cfmYes=yes;$('cfm').classList.remove('hidden');}
-$('cfmYes').onclick=()=>{$('cfm').classList.add('hidden');const f=cfmYes;cfmYes=null;if(f)f();};
+$('cfmYes').onclick=()=>{sfx('buy');$('cfm').classList.add('hidden');const f=cfmYes;cfmYes=null;if(f)f();};
 $('cfmNo').onclick=()=>{$('cfm').classList.add('hidden');cfmYes=null;};
 var isTouch=('ontouchstart' in window)||(window.matchMedia&&matchMedia('(pointer: coarse)').matches);
 if(isTouch)document.body.classList.add('touch');
@@ -1291,6 +1578,33 @@ document.querySelectorAll('#touch button').forEach(b=>{
   b.addEventListener('pointerdown',down);b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);b.addEventListener('pointerleave',up);
   b.addEventListener('contextmenu',e=>e.preventDefault());
 });
+function seg(id,opts,cur,fn){const el=$(id);el.innerHTML='';for(const [k,n] of opts){const b=document.createElement('button');b.textContent=n;if(k===cur)b.className='on';b.onclick=()=>fn(k);el.appendChild(b);}}
+let setFrom='title';
+function buildSettings(){
+  const st=save.set;
+  $('vSfx').value=Math.round(st.sfx*100);$('vSfxT').textContent=$('vSfx').value;
+  $('vMus').value=Math.round(st.mus*100);$('vMusT').textContent=$('vMus').value;
+  $('vSfx').oninput=e=>{st.sfx=e.target.value/100;$('vSfxT').textContent=e.target.value;auVol();persist();};
+  $('vSfx').onchange=()=>sfx('coin');
+  $('vMus').oninput=e=>{st.mus=e.target.value/100;$('vMusT').textContent=e.target.value;auVol();persist();};
+  seg('sDiff',Object.entries(DIFFS).map(([k,v])=>[k,v.name]),save.diff,k=>{save.diff=k;persist();buildSettings();});
+  seg('sQual',[['high','높음'],['low','낮음 (가볍게)']],st.qual,k=>{st.qual=k;persist();resize();buildSettings();});
+  seg('sVib',[['on','켜기'],['off','끄기']],st.vib?'on':'off',k=>{st.vib=k==='on';persist();vib(80);buildSettings();});
+}
+function openSettings(){setFrom=mode==='pause'?'pause':'title';show('settings');buildSettings();}
+function buildMissions(){
+  ensureDaily();const d=save.daily;$('mDate').textContent=d.date+' · 자정에 새 미션';
+  $('mDaily').innerHTML=d.ids.map(id=>{const m=MISSIONS.find(x=>x.id===id),p=Math.min(m.goal,Math.floor(d.prog[id]||0)),done=d.done[id];
+    return `<div class="mrow ${done?'done':''}"><div class="mt"><b>${done?'✓ ':''}${m.t}</b><div class="bar"><i style="width:${p/m.goal*100}%"></i></div></div><small>${p} / ${m.goal}<br>+${m.rew} CR</small></div>`;}).join('');
+  $('aCount').textContent=ACHS.filter(a=>save.ach[a.id]).length+' / '+ACHS.length;
+  $('mAch').innerHTML=ACHS.map(a=>`<div class="mrow ${save.ach[a.id]?'done':'lockA'}"><div class="mt"><b>${save.ach[a.id]?'★':'☆'} ${a.t}</b><br><small>${a.d}</small></div><small>${rewText(a.rew)}</small></div>`).join('');
+}
+function openMissions(){show('missions');buildMissions();}
+$('bSettings').onclick=openSettings;$('bPSet').onclick=openSettings;
+$('bSetBack').onclick=()=>{if(setFrom==='pause')show('pause');else{show('title');buildProfile();}};
+$('bMissions').onclick=openMissions;$('bMisBack').onclick=()=>{show('title');buildProfile();};
+$('bReset').onclick=()=>ask('모든 기록(크레딧·차량·업그레이드·미션·업적)을 지울까요?<br><small>되돌릴 수 없어요.</small>',()=>{try{localStorage.removeItem(KEY);}catch(e){}location.reload();});
+document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('button,.btn'))sfx('ui');});
 $('bPause').onclick=pauseGame;
 $('bResume').onclick=resumeGame;
 $('bRestart').onclick=()=>startRace(TR);
