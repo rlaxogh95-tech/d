@@ -69,10 +69,6 @@
   .mk.me{width:16px;height:16px;margin:-8px 0 0 -8px;background:#fff;border:2px solid var(--acc);z-index:2}
   .mk.gh{background:#9fe8ff;opacity:.6}
   #ghostd{font-weight:800;font-size:14px;height:18px}
-  #loop{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:5;display:flex;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:30px;padding:6px 16px;font-size:14px;white-space:nowrap}
-  #loop i{opacity:.4;font-style:normal}#loop i.back{color:var(--acc);opacity:.8}
-  #loop span{padding:4px 12px;border-radius:20px;opacity:.6}
-  #loop span.on{background:var(--acc);color:#1a1300;font-weight:800;opacity:1}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 18px;text-align:left;min-width:min(520px,92vw)}
   .prow{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:4px 0;font-size:14px}
   .bar{height:8px;background:#ffffff22;border-radius:4px;overflow:hidden}
@@ -93,7 +89,7 @@
   .urow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
   .urow small{opacity:.7}.urow button{min-width:104px;font-size:13px;padding:7px 10px}.urow button.lock{opacity:.55}
   .pips{color:var(--acc);letter-spacing:2px;font-size:13px}
-  @media(max-width:700px){#lgList{grid-template-columns:1fr}#loop{font-size:11px;padding:4px 8px;gap:4px}#loop span{padding:3px 6px}#tc{width:30vw}}
+  @media(max-width:700px){#lgList{grid-template-columns:1fr}#tc{width:30vw}}
 </style>
 </head>
 <body>
@@ -114,15 +110,10 @@
 <div id="pops"></div>
 <div id="msg"></div>
 
-<div id="loop" class="hidden">
-  <span data-s="1">① 레이스</span><i>→</i><span data-s="2">② 보상</span><i>→</i><span data-s="3">③ 성장</span><i>→</i><span data-s="4">④ 도전</span><i class="back">↻ 반복</i>
-</div>
-
 <div id="title" class="ov">
   <h1>TURBO RACER 3D</h1>
-  <p>달리고 · 보상 받고 · 성장시키고 · 더 높은 리그에 도전!</p>
+  <p>추월하고, 아이템 쓰고, 내 차를 키워 더 높은 리그에 도전!</p>
   <div id="prof" class="card"></div>
-  <p id="rec" class="gold"></p>
   <div class="row">
     <button class="main" id="bStart">리그 도전 (Enter)</button>
     <button id="bGarage">차고 · 업그레이드</button>
@@ -137,7 +128,7 @@
 </div>
 
 <div id="league" class="ov hidden">
-  <h2>④ 도전 — 리그 선택</h2>
+  <h2>리그 선택</h2>
   <div id="lgList"></div>
   <div class="row"><button id="bLgBack">← 허브로</button></div>
 </div>
@@ -145,22 +136,21 @@
 <div id="over" class="ov hidden">
   <h2 id="rtitle"></h2>
   <div id="rbody" class="card"></div>
-  <p id="rnext" class="gold"></p>
   <div class="row">
     <button class="main" id="bRetry">다시 달리기 (Enter)</button>
-    <button id="bToGarage">③ 성장 (업그레이드)</button>
-    <button id="bToLeague">④ 리그 선택</button>
+    <button id="bToGarage">차고 · 업그레이드</button>
+    <button id="bToLeague">리그 선택</button>
   </div>
 </div>
 
 <div id="garage" class="ov hidden">
   <div id="gpanel">
-    <h2>③ 성장 — 차고</h2>
+    <h2>차고</h2>
     <p><span id="gGold" class="gold"></span></p>
     <div class="row" id="gtabs" style="justify-content:flex-start"></div>
     <div id="gbody"></div>
     <div class="row" style="margin-top:14px;justify-content:flex-start">
-      <button class="main" id="bGoLeague">④ 도전하러 가기</button>
+      <button class="main" id="bGoLeague">리그 선택</button>
       <button id="bBack">허브로</button>
     </div>
   </div>
@@ -932,9 +922,8 @@ function frameBody(dt){
 /* ================= 화면 전환 / 루프 UI ================= */
 function show(id){
   for(const x of ['title','league','garage','over'])$(x).classList.toggle('hidden',x!==id);
-  $('loop').classList.toggle('hidden',!id);$('hud').classList.toggle('hidden',!!id);
+  $('hud').classList.toggle('hidden',!!id);
 }
-function setStage(n){document.querySelectorAll('#loop span').forEach(e=>e.classList.toggle('on',+e.dataset.s===n));}
 function cheapestUpgrade(){
   const u=curUp();let best=null;
   for(const x of UPG){const lv=u[x.k];if(lv>=MAXLV)continue;if(lv>=3&&save.parts[x.k]<=0)continue;const c=UCOST[lv];if(best===null||c<best)best=c;}
@@ -946,17 +935,12 @@ function buildProfile(){
     `<div class="prow"><b>Lv.${lv}</b><div class="bar" style="flex:1"><i style="width:${(save.rp-a)/(b-a)*100}%"></i></div><small>${save.rp-a} / ${b-a} RP</small></div>`+
     `<div class="prow"><span class="gold">${save.gold} CR</span><span>해금권 <b class="gold">${save.tickets}</b></span><span>부품 엔진 ${save.parts.e} · 타이어 ${save.parts.t} · 니트로 ${save.parts.n} · 서스 ${save.parts.s}</span></div>`+
     `<div class="prow"><span>현재 차량 <b>${c.name}</b></span><span>성능 <b class="gold">${rating()} PP</b></span><span>완주 ${save.races}회</span></div>`;
-  const cu=cheapestUpgrade();let rec;
-  if(cu!==null&&save.gold>=cu)rec='추천: ③ 성장 단계에서 업그레이드할 수 있어요!';
-  else if(save.tickets>0&&save.cars.length<CARS.length)rec='추천: 해금권이 있어요. ③ 성장 → 차량 탭에서 새 차량을 해금하세요.';
-  else rec='추천: ④ 도전 단계에서 리그에 출전해 보세요.';
-  $('rec').textContent=rec;
 }
 function openHub(){
-  mode='title';cycSpd=1;newRun(TR);show('title');setStage(0);buildProfile();resize();
+  mode='title';cycSpd=1;newRun(TR);show('title');buildProfile();resize();
 }
 function openLeague(){
-  mode='league';newRun(TR);show('league');setStage(4);
+  mode='league';newRun(TR);show('league');
   if(leagueLock(LEAGUES[selLeague]))selLeague=0;
   let best=0;LEAGUES.forEach((l,i)=>{if(!leagueLock(l))best=i;});
   if(selLeague<best&&!buildLeague._touched)selLeague=best;
@@ -1009,10 +993,10 @@ function showResults(dnf){
   $('rtitle').textContent=dnf?'레이스 실패 (DNF)':(rank===1?'우승!':rank<=3?'입상!':'완주');
   $('rbody').innerHTML=
     `<div class="rank-big ${rank<=3?'pod':''}">${dnf?'DNF':ord}</div>`+
-    `<div class="rsec">① 레이스 기록</div>`+
+    `<div class="rsec">기록</div>`+
     row('기록',dnf?'-':fmt(s.finTime),newBest?'<em>신기록!</em>':'')+
     row('추월',s.passN+'대')+row('드리프트 점수',Math.floor(s.driftPts))+row('니어미스',s.nearN+'회 (+'+s.nearPts+')')+
-    `<div class="rsec">② 보상</div>`+
+    `<div class="rsec">보상</div>`+
     row(dnf?'완주 실패 위로금':rank+'등 보상','+'+crRank+' CR')+row('코인 '+s.gold+'개','+'+s.gold+' CR')+row('묘기 보너스','+'+crStunt+' CR')+
     row('리그 배수',`x${TR.mult}`)+
     row('크레딧 합계','+'+totCr+' CR','')+row('경험치','+'+totRp+' RP')+
@@ -1021,8 +1005,7 @@ function showResults(dnf){
     (part?row('획득 부품',PART_NAMES[part]+' x1'):'');
   const cu=cheapestUpgrade(),can=(cu!==null&&save.gold>=cu)||save.tickets>0;
   $('bToGarage').classList.toggle('glow',can);
-  $('rnext').textContent=can?'→ ③ 성장: 방금 번 보상으로 업그레이드·해금할 수 있어요!':'→ ④ 도전: 다시 달리거나 더 높은 리그에 도전해 보세요.';
-  show('over');setStage(2);
+  show('over');
 }
 
 /* ---------- 차고 (성장 단계) ---------- */
@@ -1091,7 +1074,7 @@ function buildGarage(){
   }
 }
 function openGarage(tab){
-  mode='garage';gtab=tab||gtab;newRun(TR);show('garage');setStage(3);buildGarage();resize();
+  mode='garage';gtab=tab||gtab;newRun(TR);show('garage');buildGarage();resize();
 }
 $('bStart').onclick=openLeague;
 $('bGarage').onclick=()=>openGarage('up');
