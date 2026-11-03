@@ -113,6 +113,19 @@
     .touch #bl{bottom:160px}
     .touch #br{display:none}
   }
+  #bPause{position:absolute;top:16px;left:150px;pointer-events:auto;width:44px;height:44px;padding:0;border-radius:50%;font-size:14px;letter-spacing:-2px}
+  .pmenu{display:flex;flex-direction:column;gap:10px;width:min(300px,80vw)}
+  .pmenu button{width:100%}
+  .btn{display:inline-block;color:var(--txt);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 14px;cursor:pointer;font-size:14px}
+  .btn:hover{border-color:var(--acc)}
+  .cimg{display:flex;gap:12px;align-items:center;margin:4px 0}
+  .cimg img,.noimg{width:72px;height:72px;border-radius:10px;object-fit:cover;border:1px solid var(--line)}
+  .noimg{display:flex;align-items:center;justify-content:center;font-size:11px;opacity:.6}
+  .cbtns{display:flex;gap:8px;flex-wrap:wrap}
+  #decalPos button{min-width:70px;font-size:13px;padding:6px 10px}
+  #decalPos button.on{border-color:var(--acc);background:#3a3010}
+  .note{display:block;opacity:.6;font-size:11px;margin-top:6px;line-height:1.5}
+  @media(max-width:600px){#bPause{left:auto;right:16px;top:178px;width:38px;height:38px}}
 </style>
 </head>
 <body>
@@ -121,6 +134,7 @@
 <div id="flash"></div>
 
 <div id="hud" class="hidden">
+  <button id="bPause" title="일시정지 (Esc)">❚❚</button>
   <div id="tl"><div id="hearts"></div><div id="gold"></div><div id="combo"></div></div>
   <div id="tr">
     <div class="led"><span class="ghost">888888</span><span id="score">000000</span></div><br>
@@ -183,6 +197,16 @@
   </div>
 </div>
 
+<div id="pause" class="ov hidden">
+  <h2>일시정지</h2>
+  <div class="pmenu">
+    <button class="main" id="bResume">계속하기 (Esc)</button>
+    <button id="bRestart">처음부터 다시</button>
+    <button id="bQuit">나가기 (허브로)</button>
+  </div>
+  <p style="opacity:.7;font-size:13px">다시 하거나 나가면 이번 레이스 보상은 받지 않아요.</p>
+</div>
+
 <div id="cfm" class="ov hidden">
   <div class="card cfmc"><p id="cfmMsg"></p>
     <div class="row" style="margin-top:12px"><button class="main" id="cfmYes">예</button><button id="cfmNo">아니오</button></div>
@@ -201,7 +225,7 @@ const PL=4.2, PWID=2.0, SPAWN_Z=-170, SC_LEN=260, ZN=9.1;
 const KEY='turboRacerSave1';
 const defSave=()=>({gold:0,best:0,rp:0,tickets:0,parts:{e:0,t:0,n:0,s:0},
   owned:['c_red','c_blue','s_none','w_none','n_none','h_sil'],eq:{c:'c_red',s:'s_none',w:'w_none',n:'n_none',h:'h_sil'},
-  cars:['rookie'],car:'rookie',up:{rookie:{e:0,t:0,n:0,s:0}},cleared:{},bestT:{},races:0});
+  cars:['rookie'],car:'rookie',up:{rookie:{e:0,t:0,n:0,s:0}},cleared:{},bestT:{},races:0,decal:'',decalPos:'both',photoColor:''});
 let save=defSave();
 try{const j=JSON.parse(localStorage.getItem(KEY));if(j){const d=defSave();save=Object.assign(d,j);
   save.eq=Object.assign(d.eq,j.eq||{});save.parts=Object.assign(d.parts,j.parts||{});save.up=Object.assign(d.up,j.up||{});
@@ -224,10 +248,15 @@ const CATALOG=[
  {id:'h_blk',t:'h',name:'블랙',val:'#2b2b33',price:100},{id:'h_pnk',t:'h',name:'핑크',val:'#ff5dc8',price:120},
  {id:'n_none',t:'n',name:'없음',val:'none',price:0},{id:'n_cy',t:'n',name:'사이언',val:'#00e5ff',price:200},
  {id:'n_pk',t:'n',name:'핑크',val:'#ff2bd6',price:200},{id:'n_gr',t:'n',name:'라임',val:'#7cff3a',price:200},
+ {id:'c_photo',t:'c',name:'내 사진 색',val:'#888888',price:0},
 ];
 const TUNE_SECS=[['c','차체 페인트'],['s','데칼'],['w','스포일러'],['h','휠'],['n','언더글로우 네온']];
 const byId=id=>CATALOG.find(x=>x.id===id)||CATALOG[0];
-const look=()=>({color:byId(save.eq.c).val,stripe:byId(save.eq.s).val,spoiler:byId(save.eq.w).val,neon:byId(save.eq.n).val,rim:byId(save.eq.h).val,model:save.car});
+if(save.photoColor)byId('c_photo').val=save.photoColor;
+let decalImg=null;
+function loadDecal(){if(!save.decal){decalImg=null;return;}const im=new Image();im.onload=()=>{decalImg=im;};im.src=save.decal;}
+loadDecal();
+const look=()=>({color:byId(save.eq.c).val,stripe:byId(save.eq.s).val,spoiler:byId(save.eq.w).val,neon:byId(save.eq.n).val,rim:byId(save.eq.h).val,model:save.car,decal:save.decal?save.decalPos:'none'});
 const hexRGB=h=>{const n=parseInt(h.slice(1),16);return [(n>>16)&255,(n>>8)&255,n&255];};
 
 /* 차량 / 성능 업그레이드 / 리그 */
@@ -236,6 +265,7 @@ const CARS=[
  {id:'sport',name:'스프린트 쿠페',desc:'가볍고 빠른 핸들링',spd:2,hdl:1.5,nit:0,dur:0,cost:1},
  {id:'suv',name:'랜드 크루저',desc:'튼튼해서 충돌에 강함',spd:-1,hdl:-.5,nit:0,dur:2,cost:1},
  {id:'super',name:'하이퍼 GT',desc:'최고 속도와 니트로 특화',spd:4,hdl:2,nit:1,dur:0,cost:3},
+ {id:'wedge',name:'웨지 EV',desc:'낮고 각진 쐐기형 전기 스포츠카',spd:3,hdl:1.5,nit:.5,dur:.5,cost:2},
 ];
 const UPG=[
  {k:'e',name:'엔진',desc:'최고 속도 · 가속력'},
@@ -291,7 +321,7 @@ function proj(x,y,z){
 const KEYS=[
  {top:[47,128,224],bot:[199,230,255],sunY:150,sun:[255,243,192],mtn:[111,143,181],cloud:[255,255,255],lum:1,tint:[1,1,1],night:0},
  {top:[54,53,111],bot:[232,152,108],sunY:24,sun:[255,122,42],mtn:[106,74,94],cloud:[255,176,138],lum:.8,tint:[1,.82,.7],night:.3},
- {top:[4,6,14],bot:[18,26,70],sunY:-90,sun:[143,164,255],mtn:[21,26,56],cloud:[42,48,96],lum:.42,tint:[.62,.7,1],night:1},
+ {top:[10,8,36],bot:[52,34,104],sunY:-90,sun:[143,164,255],mtn:[44,34,86],cloud:[70,52,130],lum:.66,tint:[.82,.8,1],night:1},
 ];
 const CYC=30;let cycT=0,night=0,LUM=1,TINT=[1,1,1],TOP=[0,0,0],FOG=[0,0,0],MTN=[0,0,0],CLOUD=[0,0,0],SUNC=[0,0,0],SUNY=100;
 const mix3=(a,b,f)=>[lerp(a[0],b[0],f),lerp(a[1],b[1],f),lerp(a[2],b[2],f)];
@@ -321,6 +351,21 @@ function gpoly(x0,x1,zA,zB,y,fill){ // zA 가까운 쪽
   if(!proj(x0,y,zB))return;
   ctx.fillStyle=fill;ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.lineTo(cx,cy);ctx.lineTo(P[0],P[1]);ctx.closePath();ctx.fill();
 }
+const NEONC=[[255,43,214],[0,229,255],[160,90,255],[124,255,58],[255,183,3]];
+function quadPath(a,b,c,d){ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.lineTo(c[0],c[1]);ctx.lineTo(d[0],d[1]);ctx.closePath();}
+function drawDecal(a,b,cc,dd){ // a=뒤왼쪽 b=뒤오른쪽 cc=앞오른쪽 dd=앞왼쪽
+  const im=decalImg,w=im.width,hh=im.height;
+  ctx.save();quadPath(a,b,cc,dd);ctx.clip();
+  ctx.transform((cc[0]-dd[0])/w,(cc[1]-dd[1])/w,(a[0]-dd[0])/hh,(a[1]-dd[1])/hh,dd[0],dd[1]);
+  ctx.globalAlpha=.96;ctx.drawImage(im,0,0);ctx.restore();
+  const dk=clamp(1-LUM*1.05,0,.6);if(dk>.02){ctx.fillStyle=`rgba(0,0,12,${dk})`;quadPath(a,b,cc,dd);ctx.fill();}
+}
+function groundGlow(x,z,r,rgb,a){
+  if(!proj(x,.05,z)||P[2]<3)return;const rx=cam.F*r/P[2],ry=rx*clamp(cam.y/P[2],.08,1);if(rx<1)return;
+  ctx.save();ctx.translate(P[0],P[1]);ctx.scale(1,ry/rx);
+  const g=ctx.createRadialGradient(0,0,0,0,0,rx);g.addColorStop(0,`rgba(${rgb},${a})`);g.addColorStop(1,`rgba(${rgb},0)`);
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,rx,0,6.283);ctx.fill();ctx.restore();
+}
 function glow(x,y,z,rw,rgb,alpha,maxR){
   if(!proj(x,y,z)||P[2]<3.5)return;let r=cam.F*rw/P[2];if(maxR)r=Math.min(r,cam.F*maxR);if(r<1)return;
   const g=ctx.createRadialGradient(P[0],P[1],0,P[0],P[1],r);
@@ -341,7 +386,7 @@ function drawBox(T,px,py,pz,w,h,d,rgb,o){
   o=o||{};
   const hx=w/2,hy=h/2,hz=d/2;let depthSum=0;
   for(let i=0;i<8;i++){
-    const c=CORN[i];let x=px+c[0]*hx,y=py+c[1]*hy,z=pz+c[2]*hz;
+    const c=CORN[i];let x=px+c[0]*hx*(o.tw&&c[1]>0?o.tw:1),y=py+c[1]*hy-(o.sl&&c[1]>0&&c[2]<0?o.sl:0),z=pz+c[2]*hz;
     if(T.cz!==1||T.sz!==0){const nx=x*T.cz-y*T.sz;y=x*T.sz+y*T.cz;x=nx;}
     if(T.cy!==1||T.sy!==0){const nx=x*T.cy+z*T.sy;z=-x*T.sy+z*T.cy;x=nx;}
     x+=T.X;y+=T.Y;z+=T.Z;
@@ -357,6 +402,7 @@ function drawBox(T,px,py,pz,w,h,d,rgb,o){
     ctx.fillStyle=lit(rgb,FACES[f].k*(o.k||1),depth,o.emis);
     ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.lineTo(cc[0],cc[1]);ctx.lineTo(dd[0],dd[1]);ctx.closePath();ctx.fill();
     if(o.stroke&&depth<90){ctx.strokeStyle='rgba(0,0,0,.28)';ctx.lineWidth=1;ctx.stroke();}
+    if(o.img&&f===2&&decalImg&&depth<120)drawDecal(a,b,cc,dd);
     if(o.win&&f!==2&&depth<150){
       const cols=f===3?o.win.cols:o.win.dcols,rows=o.win.rows;
       for(let r=0;r<rows;r++)for(let cI=0;cI<cols;cI++){
@@ -382,7 +428,8 @@ const MODELS={
  super:{bodyY:.46,bodyH:.38,cabH:.34,wh:.78,w:2.15},
 };
 function carParts(o){
-  const parts=[];const add=(x,y,z,w,h,d,c,e)=>parts.push({x,y,z,w,h,d,c,e});
+  const parts=[];const add=(x,y,z,w,h,d,c,e)=>{const q={x,y,z,w,h,d,c,e};parts.push(q);return q;};
+  const dHood=o.decal==='hood'||o.decal==='both',dRoof=o.decal==='roof'||o.decal==='both';
   if(o.truck){
     const cab=hexRGB(o.color);
     add(0,.55,0,2.3,.5,7.8,DARK);
@@ -393,12 +440,36 @@ function carParts(o){
     add(-.8,.9,3.97,.5,.18,.1,TAIL,true);add(.8,.9,3.97,.5,.18,.1,TAIL,true);
     return parts;
   }
+  if(o.model==='wedge'){
+    const B=hexRGB(o.color),rim=o.rim?hexRGB(o.rim):RIM,L=4.4,hw=1.06;
+    add(0,.3,0,2.0,.16,4.2,DARK);
+    for(const sx of [-1,1])for(const sz of [-1.45,1.45]){add(sx*hw,.42,sz,.36,.84,.84,TIRE);add(sx*(hw+.19),.42,sz,.03,.56,.56,rim);}
+    add(0,.36,0,2.14,.16,4.3,DARK);
+    const body=add(0,.55,0,2.12,.5,L,B);body.sl=.28;
+    const glass=add(0,1.02,.45,1.86,.46,2.7,GLASS);glass.sl=.5;glass.tw=.78;
+    add(0,.84,1.95,2.06,.12,.5,B).img=dRoof;
+    const hood=add(0,.583,-1.55,1.9,.06,1.3,B);hood.sl=.083;hood.img=dHood;
+    add(0,.56,-2.21,1.9,.05,.05,HEAD,true);add(0,.78,2.21,1.9,.06,.05,TAIL,true);
+    if(o.stripe==='center'||o.stripe==='side'){
+      const xs=o.stripe==='center'?[-.18,.18]:[-.78,.78],w=o.stripe==='center'?.16:.12;
+      for(const x of xs){const s=add(x,.556,0,w,.512,L,WHITE,true);s.sl=.28;}
+    }else if(o.stripe==='flame'){
+      for(const sx of [-1,1]){add(sx*(hw+.012),.42,-.9,.02,.2,1.8,[255,140,26],true);add(sx*(hw+.014),.46,-.6,.02,.1,1.0,[255,225,74],true);add(sx*(hw+.012),.58,-1.5,.02,.14,.8,[255,140,26],true);}
+    }
+    if(o.spoiler==='wing'||o.spoiler==='big'){
+      const big=o.spoiler==='big',sp=[B[0]*.5,B[1]*.5,B[2]*.5],tt=.9;
+      for(const sx of [-1,1])add(sx*.62,tt+(big?.25:.15),1.95,.09,big?.5:.3,.12,DARK);
+      add(0,tt+(big?.55:.3),1.95,big?2.3:1.95,big?.1:.07,big?.7:.45,sp);
+      if(big)for(const sx of [-1,1])add(sx*1.15,tt+.55,1.95,.06,.3,.7,DARK);
+    }
+    return parts;
+  }
   const m=MODELS[o.model||'rookie']||MODELS.rookie,B=hexRGB(o.color),rim=o.rim?hexRGB(o.rim):RIM;
   const bodyTop=m.bodyY+m.bodyH/2,hoodY=bodyTop+.03,cabY=bodyTop+m.cabH/2-.02,roofY=cabY+m.cabH/2+.04,hw=m.w/2;
   add(0,.28,0,m.w-.1,.15,4.0,DARK);
   for(const sx of [-1,1])for(const sz of [-1.4,1.4]){add(sx*hw,m.wh/2,sz,.34,m.wh,m.wh,TIRE);add(sx*(hw+.18),m.wh/2,sz,.03,m.wh*.62,m.wh*.62,rim);}
-  add(0,m.bodyY,0,m.w,m.bodyH,4.2,B);add(0,hoodY,-1.3,m.w-.1,.1,1.5,B);add(0,hoodY,1.6,m.w-.1,.1,.9,B);
-  add(0,cabY,.3,1.72,m.cabH,2.1,GLASS);add(0,roofY,.3,1.76,.08,1.5,B);
+  add(0,m.bodyY,0,m.w,m.bodyH,4.2,B);add(0,hoodY,-1.3,m.w-.1,.1,1.5,B).img=dHood;add(0,hoodY,1.6,m.w-.1,.1,.9,B);
+  add(0,cabY,.3,1.72,m.cabH,2.1,GLASS);add(0,roofY,.3,1.76,.08,1.5,B).img=dRoof;
   add(0,m.bodyY-.2,-2.1,m.w-.1,.22,.14,DARK);add(0,m.bodyY-.2,2.1,m.w-.1,.22,.14,DARK);
   for(const sx of [-1,1]){add(sx*.7,m.bodyY+.09,-2.12,.5,.15,.1,HEAD,true);add(sx*.68,m.bodyY+.13,2.12,.55,.13,.1,TAIL,true);}
   const hoodTop=hoodY+.056,roofTop=roofY+.046;
@@ -420,7 +491,7 @@ function carParts(o){
   return parts;
 }
 function drawCarParts(parts,T,o){
-  for(const p of parts)drawBox(T,p.x,p.y,p.z,p.w,p.h,p.d,p.c,{emis:p.e,stroke:true});
+  for(const p of parts)drawBox(T,p.x,p.y,p.z,p.w,p.h,p.d,p.c,{emis:p.e,stroke:true,img:p.img,sl:p.sl,tw:p.tw});
   if(o&&o.truck)return;
   for(const sx of [-1,1]){
     const lx=sx*.68,lz=2.2;
@@ -477,6 +548,8 @@ function drawScenery(o){
   if(o.kind==='bld'){
     const cl=o.cl;
     drawBox(T0(),o.x,cl.h/2,z,10,cl.h,o.d,cl.hue,{win:{cols:6,dcols:4,rows:cl.rows,seed:o.seed}});
+    if(night>.3){const nc=NEONC[o.seed%NEONC.length],zz=z+o.d/2+.12;
+      drawBox(T0(),o.x,cl.h*.72,zz,6,1.2,.2,nc,{emis:true});glow(o.x,cl.h*.72,zz+.3,5,nc,night*.3);}
     return;
   }
   if(o.kind==='gantry'){
@@ -538,6 +611,7 @@ addEventListener('keydown',e=>{
   if(!keys[k]){
     if(mode==='play'&&k.length===1&&'qwer'.includes(k))useItem(k);
     if(e.key===' ')doJump();
+    if(e.key==='Escape'||k==='p'){if(mode==='play'||mode==='count')pauseGame();else if(mode==='pause')resumeGame();}
     if(e.key==='Enter'){
       if(mode==='title')openLeague();
       else if(mode==='league'){const l=LEAGUES[selLeague];if(!leagueLock(l))startRace(l);}
@@ -547,7 +621,8 @@ addEventListener('keydown',e=>{
   keys[k]=true;
 });
 addEventListener('keyup',e=>{keys[e.key.length===1?e.key.toLowerCase():e.key]=false;});
-addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
+addEventListener('blur',()=>{for(const k in keys)keys[k]=false;if(mode==='play')pauseGame();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&mode==='play')pauseGame();});
 
 /* ---------- 파티클 ---------- */
 function emit(x,y,z,rgb,n,spd){
@@ -832,6 +907,9 @@ function drawPlayerOverlay(s){
 function renderRoad(){
   const s=S;
   drawSky();drawGround();
+  if(night>.2){ctx.globalCompositeOperation='lighter';
+    for(const o of scenery){if(o.kind!=='lamp'||o.z>ZN-1||o.z<-150)continue;groundGlow(o.x-o.side*2.3,o.z,4,[255,214,140],night*.3);}
+    ctx.globalCompositeOperation='source-over';}
   if(night>.15){
     if(proj(playerX-1.4,.03,-1)){const a=[P[0],P[1]];if(proj(playerX+1.4,.03,-1)){const b=[P[0],P[1]];if(proj(playerX+4.5,.03,-24)){const c=[P[0],P[1]];if(proj(playerX-4.5,.03,-24)){
       const g=ctx.createLinearGradient(0,a[1],0,P[1]);g.addColorStop(0,`rgba(255,245,200,${.15*night})`);g.addColorStop(1,'rgba(255,245,200,0)');
@@ -971,6 +1049,7 @@ function frame(t){
 }
 function frameBody(dt){
   const s=S;
+  if(mode==='pause'){ctx.setTransform(DPR,0,0,DPR,0,0);updateCameraRoad(0);renderRoad();return;}
   if(mode==='count'){
     s.speed=0;s.cd-=dt;const n=Math.ceil(s.cd);
     if(n!==cdLast&&n>0){cdLast=n;bannerMsg(String(n));}
@@ -993,7 +1072,7 @@ function frameBody(dt){
 /* ================= 화면 전환 / 루프 UI ================= */
 function show(id){
   if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
-  for(const x of ['title','league','garage','over'])$(x).classList.toggle('hidden',x!==id);
+  for(const x of ['title','league','garage','over','pause'])$(x).classList.toggle('hidden',x!==id);
   $('hud').classList.toggle('hidden',!!id);
 }
 function cheapestUpgrade(){
@@ -1008,6 +1087,13 @@ function buildProfile(){
     `<div class="prow"><span class="gold">${save.gold} CR</span><span>해금권 <b class="gold">${save.tickets}</b></span><span>부품 엔진 ${save.parts.e} · 타이어 ${save.parts.t} · 니트로 ${save.parts.n} · 서스 ${save.parts.s}</span></div>`+
     `<div class="prow"><span>현재 차량 <b>${c.name}</b></span><span>성능 <b class="gold">${rating()} PP</b></span><span>완주 ${save.races}회</span></div>`;
 }
+let pausedFrom='play';
+function pauseGame(){
+  if(mode!=='play'&&mode!=='count')return;
+  pausedFrom=mode;mode='pause';for(const k in keys)keys[k]=false;S.shake=0;
+  document.querySelectorAll('#touch button').forEach(b=>b.classList.remove('on'));show('pause');
+}
+function resumeGame(){if(mode!=='pause')return;mode=pausedFrom;show(null);}
 function openHub(){
   mode='title';cycSpd=1;newRun(TR);show('title');buildProfile();resize();
 }
@@ -1113,10 +1199,27 @@ function buildGarage(){
     }
     box.insertAdjacentHTML('beforeend','<div class="sec">※ Lv.4~5 강화에는 레이스 보상으로 얻는 부품이 필요합니다.</div>');
   }else if(gtab==='tune'){
+    const cs=document.createElement('div');
+    cs.innerHTML=`<div class="sec">내 이미지 커스텀</div>
+      <div class="cimg">${save.decal?`<img src="${save.decal}" alt="내 이미지">`:'<div class="noimg">사진 없음</div>'}
+        <div class="cbtns"><label class="btn">${save.decal?'사진 바꾸기':'사진 올리기'}<input type="file" accept="image/*" id="decalIn" hidden></label>
+        ${save.decal?'<button id="bDecalDel">삭제</button>':''}</div></div>
+      ${save.decal?'<div class="sec">이미지 붙일 위치</div><div class="shop" id="decalPos"></div><small class="note">사진에서 뽑은 색은 아래 차체 페인트의 "내 사진 색"으로 쓸 수 있어요.</small>':''}
+      <small class="note">직접 찍거나 그린 이미지를 쓰세요. 다른 회사 로고가 든 사진은 공개할 때 문제가 될 수 있어요.</small>`;
+    box.appendChild(cs);
+    $('decalIn').onchange=e=>{const f=e.target.files&&e.target.files[0];if(f)importImage(f);};
+    if(save.decal){
+      for(const [k,n] of [['none','끄기'],['roof','지붕'],['hood','보닛'],['both','지붕+보닛']]){
+        const b=document.createElement('button');b.textContent=n;if(save.decalPos===k)b.className='on';
+        b.onclick=()=>{save.decalPos=k;persist();rebuildPlayer();buildGarage();};$('decalPos').appendChild(b);}
+      $('bDecalDel').onclick=()=>ask('내 이미지를 삭제할까요?',()=>{save.decal='';decalImg=null;
+        if(save.eq.c==='c_photo')save.eq.c='c_red';save.photoColor='';save.owned=save.owned.filter(x=>x!=='c_photo');
+        persist();rebuildPlayer();buildGarage();});
+    }
     for(const [t,label] of TUNE_SECS){
       box.insertAdjacentHTML('beforeend',`<div class="sec">${label}</div>`);
       const wrap=document.createElement('div');wrap.className='shop';
-      CATALOG.filter(x=>x.t===t).forEach(it=>{
+      CATALOG.filter(x=>x.t===t&&(x.id!=='c_photo'||save.photoColor)).forEach(it=>{
         const owned=save.owned.includes(it.id),on=save.eq[t]===it.id;
         const b=document.createElement('button');b.className=(on?'on ':'')+(owned?'':'lock');
         const sw=(t==='c'||t==='h'||(t==='n'&&it.val!=='none'))?`<span class="sw" style="background:${it.val}"></span>`:'';
@@ -1149,6 +1252,30 @@ function buildGarage(){
     }
   }
 }
+function importImage(f){
+  const rd=new FileReader();
+  rd.onload=()=>{const im=new Image();
+    im.onload=()=>{
+      const N=160,c=document.createElement('canvas');c.width=c.height=N;const g=c.getContext('2d');
+      const m=Math.min(im.width,im.height);g.drawImage(im,(im.width-m)/2,(im.height-m)/2,m,m,0,0,N,N);
+      const url=c.toDataURL('image/jpeg',.82);
+      // 대표 색: 색상(hue)별로 묶어 가장 많은 색 무리의 평균
+      const d=g.getImageData(0,0,N,N).data,bins=[];for(let i=0;i<13;i++)bins.push([0,0,0,0]);
+      for(let i=0;i<d.length;i+=16){const R=d[i],G=d[i+1],B=d[i+2],mx=Math.max(R,G,B),mn=Math.min(R,G,B),sat=mx?(mx-mn)/mx:0;
+        let k=12;if(sat>.25&&mx>40){let hu=mx===R?(G-B)/(mx-mn):mx===G?2+(B-R)/(mx-mn):4+(R-G)/(mx-mn);hu=(hu*60+360)%360;k=Math.floor(hu/30);}
+        const w=k===12?.35:(.3+sat);const bn=bins[k];bn[0]+=R*w;bn[1]+=G*w;bn[2]+=B*w;bn[3]+=w;}
+      const top=bins.reduce((x,y)=>y[3]>x[3]?y:x);
+      const hex='#'+[top[0],top[1],top[2]].map(v=>Math.round(v/top[3]).toString(16).padStart(2,'0')).join('');
+      const prev={decal:save.decal,photoColor:save.photoColor,decalPos:save.decalPos};
+      save.decal=url;save.photoColor=hex;if(save.decalPos==='none')save.decalPos='both';
+      try{localStorage.setItem(KEY,JSON.stringify(save));}catch(e){Object.assign(save,prev);$('gGold').textContent='이미지를 저장하지 못했어요 (저장 공간 부족)';return;}
+      if(!save.owned.includes('c_photo'))save.owned.push('c_photo');byId('c_photo').val=hex;persist();
+      decalImg=im;loadDecal();rebuildPlayer();buildGarage();
+    };
+    im.onerror=()=>{$('gGold').textContent='이미지를 읽지 못했어요. 다른 파일을 골라 주세요.';};
+    im.src=rd.result;};
+  rd.readAsDataURL(f);
+}
 function openGarage(tab){
   mode='garage';gtab=tab||gtab;newRun(TR);show('garage');buildGarage();resize();
 }
@@ -1164,6 +1291,10 @@ document.querySelectorAll('#touch button').forEach(b=>{
   b.addEventListener('pointerdown',down);b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);b.addEventListener('pointerleave',up);
   b.addEventListener('contextmenu',e=>e.preventDefault());
 });
+$('bPause').onclick=pauseGame;
+$('bResume').onclick=resumeGame;
+$('bRestart').onclick=()=>startRace(TR);
+$('bQuit').onclick=openHub;
 $('bStart').onclick=openLeague;
 $('bGarage').onclick=()=>openGarage('up');
 $('bLgBack').onclick=openHub;
