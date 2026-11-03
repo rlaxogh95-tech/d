@@ -29,6 +29,7 @@
   .slot .k{font-weight:800;font-size:18px}
   .slot .n{font-size:12px;opacity:.8;position:absolute;left:8px;bottom:6px}
   .slot .c{position:absolute;right:8px;top:6px;font-weight:800;font-size:20px;color:#666}
+  .slot.jw{width:96px}
   .slot.has{border-color:var(--ic)}.slot.has .c{color:#ffd23f}
   .slot.active{background:var(--ic);box-shadow:0 0 18px var(--ic)}
   #br{position:absolute;right:18px;bottom:18px;text-align:right;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 16px;min-width:150px}
@@ -90,6 +91,28 @@
   .urow small{opacity:.7}.urow button{min-width:104px;font-size:13px;padding:7px 10px}.urow button.lock{opacity:.55}
   .pips{color:var(--acc);letter-spacing:2px;font-size:13px}
   @media(max-width:700px){#lgList{grid-template-columns:1fr}#tc{width:30vw}}
+  html,body{touch-action:manipulation;-webkit-touch-callout:none}
+  #cfm{z-index:30;background:rgba(5,7,14,.7)}
+  .cfmc{min-width:0;width:min(380px,90vw);text-align:center;font-size:16px;line-height:1.7}
+  #touch{display:none;position:absolute;left:0;right:0;bottom:16px;justify-content:space-between;align-items:flex-end;padding:0 16px;pointer-events:none}
+  .touch #touch{display:flex}
+  #touch .grp{display:flex;gap:12px;align-items:flex-end;pointer-events:auto}
+  #touch .col{display:flex;flex-direction:column;gap:10px}
+  #touch button{width:74px;height:74px;border-radius:50%;padding:0;font-size:28px;background:rgba(18,22,36,.55);border:2px solid rgba(255,255,255,.35);touch-action:none;-webkit-user-select:none;user-select:none}
+  #touch button.sm{width:54px;height:54px;font-size:20px}
+  #touch button.jb{width:88px;height:88px;font-size:16px;font-weight:800;background:rgba(57,194,122,.45);border-color:#7CFC9a}
+  #touch button.on{background:rgba(255,183,3,.6);border-color:var(--acc)}
+  .touch #bl{bottom:112px;left:12px;gap:6px;transform:scale(.78);transform-origin:left bottom}
+  .touch #br{bottom:112px;right:12px;transform:scale(.8);transform-origin:right bottom}
+  @media(max-width:600px){
+    #hearts{font-size:24px}#gold,#combo{font-size:15px}
+    .led{font-size:22px;padding:4px 10px}.led #score{right:10px;top:4px}
+    #rank{font-size:18px;padding:2px 10px}
+    #tc{top:112px;left:16px;right:16px;width:auto;transform:none}
+    #timer{font-size:24px}
+    .touch #bl{bottom:160px}
+    .touch #br{display:none}
+  }
 </style>
 </head>
 <body>
@@ -105,6 +128,10 @@
   </div>
   <div id="tc"><div id="timer">0:00.0</div><div id="prog"><div id="pline"></div></div><div id="ghostd"></div><div id="trk"></div></div>
   <div id="bl"></div>
+  <div id="touch">
+    <div class="grp"><button data-k="ArrowLeft">◀</button><button data-k="ArrowRight">▶</button></div>
+    <div class="grp"><div class="col"><button class="sm" data-k="ArrowUp">▲</button><button class="sm" data-k="ArrowDown">▼</button></div><button class="jb" data-act="jump">JUMP</button></div>
+  </div>
   <div id="br"><div id="kmh">0</div><small>km/h</small><div id="bar"><i></i></div></div>
 </div>
 <div id="pops"></div>
@@ -119,10 +146,10 @@
     <button id="bGarage">차고 · 업그레이드</button>
   </div>
   <div class="help">
-    <b>←  →</b> 이동 (길게 누르면 <b>드리프트</b>) &nbsp; <b>↑</b> 가속 &nbsp; <b>↓</b> 감속<br>
-    <b>Q</b> 부스트 &nbsp; <b>W</b> 방어막 &nbsp; <b>E</b> 코인 자석 &nbsp; <b>R</b> 폭탄<br>
+    <b>←  →</b> 이동 (길게 누르면 <b>드리프트</b>) &nbsp; <b>↑</b> 가속 &nbsp; <b>↓</b> 감속 &nbsp; <b>Space</b> 점프<br>
+    <b>Q</b> 부스트 &nbsp; <b>W</b> 방어막 &nbsp; <b>E</b> 코인 자석 &nbsp; <b>R</b> 폭탄 &nbsp; (모바일은 화면 버튼)<br>
     드리프트·니어미스 묘기 점수 → 보상 증가 · 드리프트로 니트로 충전<br>
-    목숨 3개 · 차량과 부딪히면 1개 소모, 모두 잃으면 완주 실패
+    목숨 3개 · 앞뒤로 부딪히면 1개 소모 (옆으로 스치면 괜찮음), 모두 잃으면 완주 실패
   </div>
   <p id="err" class="hidden"></p>
 </div>
@@ -153,6 +180,12 @@
       <button class="main" id="bGoLeague">리그 선택</button>
       <button id="bBack">허브로</button>
     </div>
+  </div>
+</div>
+
+<div id="cfm" class="ov hidden">
+  <div class="card cfmc"><p id="cfmMsg"></p>
+    <div class="row" style="margin-top:12px"><button class="main" id="cfmYes">예</button><button id="cfmNo">아니오</button></div>
   </div>
 </div>
 
@@ -288,8 +321,8 @@ function gpoly(x0,x1,zA,zB,y,fill){ // zA 가까운 쪽
   if(!proj(x0,y,zB))return;
   ctx.fillStyle=fill;ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.lineTo(cx,cy);ctx.lineTo(P[0],P[1]);ctx.closePath();ctx.fill();
 }
-function glow(x,y,z,rw,rgb,alpha){
-  if(!proj(x,y,z))return;const r=cam.F*rw/P[2];if(r<1)return;
+function glow(x,y,z,rw,rgb,alpha,maxR){
+  if(!proj(x,y,z)||P[2]<3.5)return;let r=cam.F*rw/P[2];if(maxR)r=Math.min(r,cam.F*maxR);if(r<1)return;
   const g=ctx.createRadialGradient(P[0],P[1],0,P[0],P[1],r);
   g.addColorStop(0,`rgba(${rgb[0]|0},${rgb[1]|0},${rgb[2]|0},${alpha})`);g.addColorStop(1,`rgba(${rgb[0]|0},${rgb[1]|0},${rgb[2]|0},0)`);
   ctx.fillStyle=g;ctx.fillRect(P[0]-r,P[1]-r,r*2,r*2);
@@ -392,7 +425,7 @@ function drawCarParts(parts,T,o){
   for(const sx of [-1,1]){
     const lx=sx*.68,lz=2.2;
     const wx=T.X+lx*T.cy+lz*T.sy,wz=T.Z-lx*T.sy+lz*T.cy;
-    glow(wx,.7+T.Y,wz,1.3,[255,40,40],.35+night*.5);
+    glow(wx,.7+T.Y,wz,.8,[255,40,40],.22+night*.13,.06);
   }
 }
 
@@ -438,7 +471,7 @@ function drawScenery(o){
     ctx.lineWidth=Math.max(1,cam.F*.14/dep);ctx.beginPath();ctx.moveTo(tx,ty);ctx.lineTo(hx,hy);ctx.stroke();
     const hw=Math.max(1.5,cam.F*.55/dep);
     ctx.fillStyle=lit([255,236,170],1,dep,true);ctx.fillRect(hx-hw,hy-hw*.3,hw*2,hw*.7);
-    if(night>.1)glow(o.x-o.side*2.3,7.3,z,5,[255,216,140],night*.85);
+    if(night>.1)glow(o.x-o.side*2.3,7.3,z,2.6,[255,216,140],night*.3);
     return;
   }
   if(o.kind==='bld'){
@@ -477,7 +510,7 @@ function newRun(tr){
   S={px:0,speed:0,time:0,dist:0,score:0,lives:3,gold:0,inv:0,boost:0,shield:false,magnet:0,
      cars:[],coins:[],boxes:[],parts:[],pops:[],lines:[],spawnT:.5,coinT:2,boxT:3.5,combo:0,comboT:0,shake:0,rank:6,
      bag:{q:st.startBoost,w:0,e:0,r:0},tilt:0,steerT:0,lastDir:0,drift:0,driftPts:0,driftBank:0,nearN:0,nearPts:0,passN:0,st,
-     cd:3.99,finT:0,fin:false,dnf:false,finTime:0,mk:[],
+     cd:3.99,finT:0,jy:0,jv:0,jcd:0,bumpT:0,fin:false,dnf:false,finTime:0,mk:[],
      rivals:RIVALS.map((n,i)=>({n,i,dist:6+i*6,base:(22+rnd(9))*TR.rival,ph:rnd(6),fin:0,x:0,z:0,
        parts:carParts({color:RCOL[i],model:'sport',rim:'#e8e8e8',stripe:'center'})})),
      ghost:save.bestT[TR.id]?{v:TR.len/save.bestT[TR.id],x:1.5,z:0,parts:carParts(look())}:null};
@@ -488,7 +521,9 @@ const hudSlots={};
 (function(){const bl=$('bl');
   for(const k of ['q','w','e','r']){const d=document.createElement('div');d.className='slot';d.style.setProperty('--ic',ITEMS[k].col);
     d.innerHTML=`<span class="k">${k.toUpperCase()}</span><span class="c">x0</span><span class="n">${ITEMS[k].name}</span>`;
-    d.onclick=()=>{if(mode==='play')useItem(k);};bl.appendChild(d);hudSlots[k]=d;}})();
+    d.onclick=()=>{if(mode==='play')useItem(k);};bl.appendChild(d);hudSlots[k]=d;}
+  const jd=document.createElement('div');jd.className='slot jw';jd.style.setProperty('--ic','#39c27a');
+  jd.innerHTML='<span class="k">SPC</span><span class="c">OK</span><span class="n">점프</span>';jd.onclick=()=>doJump();bl.appendChild(jd);hudSlots.j=jd;})();
 let heartsCache='';
 function setHearts(n){const s=[0,1,2].map(i=>`<span class="${i<n?'on':'off'}">♥</span>`).join('');if(s!==heartsCache){heartsCache=s;$('hearts').innerHTML=s;}}
 function pop3(x,y,z,text,col){const el=document.createElement('div');el.className='pop';el.textContent=text;el.style.color=col||'#fff';popsEl.appendChild(el);S.pops.push({el,x,y,z,life:1});}
@@ -497,10 +532,12 @@ function bannerMsg(t){const m=$('msg');m.textContent=t;m.style.opacity=1;clearTi
 /* ---------- 입력 ---------- */
 const keys={};
 addEventListener('keydown',e=>{
+  if(!$('cfm').classList.contains('hidden')){if(e.key==='Escape')$('cfmNo').click();else if(e.key==='Enter')$('cfmYes').click();e.preventDefault();return;}
   const k=e.key.length===1?e.key.toLowerCase():e.key;
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();
   if(!keys[k]){
     if(mode==='play'&&k.length===1&&'qwer'.includes(k))useItem(k);
+    if(e.key===' ')doJump();
     if(e.key==='Enter'){
       if(mode==='title')openLeague();
       else if(mode==='league'){const l=LEAGUES[selLeague];if(!leagueLock(l))startRace(l);}
@@ -578,6 +615,34 @@ function finishRace(){
   mode='finish';bannerMsg('FINISH!');
   emit(s.px,2,0,[255,255,255],40,12);
 }
+function doJump(){
+  const s=S;if(mode!=='play'||s.jy>0||s.jcd>0)return;
+  s.jv=9.5;s.jy=.001;s.jcd=1.6;pop3(s.px,2.8,0,'점프!','#7CFC9a');
+}
+function sideBump(x,z,ox){
+  const s=S,dir=s.px>=x?1:-1;
+  s.px=clamp(s.px+dir*(ox+.05),-(HALF-1.3),HALF-1.3);
+  if(s.bumpT<=0){s.bumpT=.4;s.speed*=.93;s.shake=Math.max(s.shake,.35);
+    emit((s.px+x)/2,.7,z*.5,[255,220,120],14,7);pop3(s.px,2.6,0,'스침!','#ffd23f');}
+}
+function rivalCollide(){
+  const s=S,st=s.st;
+  for(const r of s.rivals){
+    r.x=clamp(LANES[[0,2,1,3,0][r.i]]+Math.sin(s.time*.6+r.ph)*1.1,-4.8,4.8);
+    const rz=s.dist-r.dist,ox=(2.05+PWID)/2-.2-Math.abs(r.x-s.px),oz=(4.2+PL)/2-.4-Math.abs(rz);
+    if(ox<=0||oz<=0||s.jy>=.6)continue;
+    if(ox<oz){sideBump(r.x,rz,ox);continue;}
+    const sep=()=>{r.dist=rz<0?Math.min(TR.len-.1,s.dist+4.6):s.dist-4.6;};
+    if(s.boost>0){r.dist=s.dist-6;emit(r.x,1,rz,[255,160,48],30,12);pop3(r.x,2.8,rz,'밀어냄!','#ffd23f');s.shake=.3;continue;}
+    if(s.shield){s.shield=false;sep();emit(s.px,1,0,[74,160,255],40,12);pop3(s.px,2.8,0,'방어!',ITEMS.w.col);continue;}
+    if(s.inv>0){sep();continue;}
+    s.lives--;s.inv=st.inv;s.shake=1;s.combo=0;s.speed*=st.hitKeep;sep();
+    emit(s.px,1,0,[255,68,34],60,15);$('flash').style.opacity=1;setTimeout(()=>$('flash').style.opacity=0,120);
+    pop3(s.px,2.8,0,r.n+' 충돌!','#ff4d4d');
+    if(s.lives<=0){showResults(true);return true;}
+  }
+  return false;
+}
 function playLogic(dt){
   const s=S,st=s.st;s.time+=dt;
   if(s.fin){
@@ -591,9 +656,11 @@ function playLogic(dt){
   s.speed+=(target-s.speed)*Math.min(1,dt*st.accel);
   const dir=(keys.ArrowRight?1:0)-(keys.ArrowLeft?1:0);
   s.px=clamp(s.px+dir*st.lat*dt,-(HALF-1.3),HALF-1.3);s.tilt+=(dir-s.tilt)*Math.min(1,dt*8);
+  if(s.jy>0||s.jv>0){s.jv-=24*dt;s.jy+=s.jv*dt;if(s.jy<=0){s.jy=0;s.jv=0;emit(s.px,.2,1,[200,200,210],12,4);s.shake=Math.max(s.shake,.2);}}
+  s.jcd=Math.max(0,s.jcd-dt);s.bumpT=Math.max(0,s.bumpT-dt);
   // 드리프트: 같은 방향으로 계속 조향하면 발동
   if(dir!==0&&dir===s.lastDir)s.steerT+=dt;else s.steerT=0;s.lastDir=dir;
-  const drifting=s.steerT>.3&&s.speed>30&&dir!==0;
+  const drifting=s.steerT>.3&&s.speed>30&&dir!==0&&s.jy===0;
   s.drift+=((drifting?1:0)-s.drift)*Math.min(1,dt*8);
   if(drifting){
     const pts=dt*(s.speed-20)*3*st.drift;s.driftPts+=pts;s.driftBank+=pts;s.score+=pts;
@@ -609,7 +676,9 @@ function playLogic(dt){
   moveWorld(dt);
   for(const c of s.cars){
     if(c.dead||c.hit)continue;
-    if(Math.abs(c.x-s.px)<(c.w+PWID)/2-.2&&Math.abs(c.z)<(c.len+PL)/2-.4){
+    const ox=(c.w+PWID)/2-.2-Math.abs(c.x-s.px),oz=(c.len+PL)/2-.4-Math.abs(c.z);
+    if(ox>0&&oz>0&&s.jy<.6&&ox<oz&&s.boost<=0){sideBump(c.x,c.z,ox);continue;}
+    if(ox>0&&oz>0&&s.jy<.6){
       if(s.boost>0){c.dead=true;emit(c.x,1,c.z,[255,160,48],40,14);s.score+=50;pop3(c.x,2.8,c.z,'+50','#ffd23f');s.shake=.25;}
       else if(s.shield){s.shield=false;c.dead=true;emit(c.x,1,c.z,[74,160,255],50,14);s.shake=.4;pop3(c.x,2.8,c.z,'방어!',ITEMS.w.col);}
       else if(s.inv<=0){
@@ -646,6 +715,7 @@ function playLogic(dt){
   s.coins=s.coins.filter(c=>!(c.got||c.z>12));
   s.boxes=s.boxes.filter(b=>!(b.got||b.z>12));
   updRivals(dt);
+  if(rivalCollide())return;
   s.rank=1+s.rivals.filter(r=>r.dist>s.dist).length;
   if(s.dist>=TR.len)finishRace();
 }
@@ -739,14 +809,14 @@ function drawPlayerFx(s){
   if(L.neon!=='none'){const c=hexRGB(L.neon);glow(playerX,.08,0,4.2,c,.95);glow(playerX,.08,0,2.6,c,.8);}
   if(s.boost>0)for(const sx of [-.6,.6]){
     const len=1.6+rnd(1.8);
-    if(proj(playerX+sx,.65,2.2)){const ax=P[0],ay=P[1],dep=P[2],w=cam.F*.3/dep;
-      if(proj(playerX+sx,.65,2.2+len)){ctx.globalCompositeOperation='lighter';
+    if(proj(playerX+sx,.65+s.jy,2.2)){const ax=P[0],ay=P[1],dep=P[2],w=cam.F*.3/dep;
+      if(proj(playerX+sx,.65+s.jy,2.2+len)){ctx.globalCompositeOperation='lighter';
         TRI(ax-w,ay,ax+w,ay,P[0],P[1],'rgba(255,140,26,.9)');TRI(ax-w*.5,ay,ax+w*.5,ay,P[0],P[1]-(P[1]-ay)*.4,'rgba(255,230,120,.9)');ctx.globalCompositeOperation='source-over';}}
-    glow(playerX+sx,.65,2.6,1.6,[255,150,40],.8);
+    glow(playerX+sx,.65+s.jy,2.6,1.6,[255,150,40],.8);
   }
 }
 function drawPlayerOverlay(s){
-  if(s.shield&&proj(playerX,.9,0)){
+  if(s.shield&&proj(playerX,.9+s.jy,0)){
     const rw=cam.F*2.0/P[2],rh=cam.F*1.5/P[2];
     ctx.save();ctx.translate(P[0],P[1]);ctx.scale(rw,rh);
     const g=ctx.createRadialGradient(0,0,.2,0,0,1);g.addColorStop(0,'rgba(80,160,255,.05)');g.addColorStop(1,`rgba(80,160,255,${.35+.12*Math.sin(performance.now()/120)})`);
@@ -764,12 +834,12 @@ function renderRoad(){
   drawSky();drawGround();
   if(night>.15){
     if(proj(playerX-1.4,.03,-1)){const a=[P[0],P[1]];if(proj(playerX+1.4,.03,-1)){const b=[P[0],P[1]];if(proj(playerX+4.5,.03,-24)){const c=[P[0],P[1]];if(proj(playerX-4.5,.03,-24)){
-      const g=ctx.createLinearGradient(0,a[1],0,P[1]);g.addColorStop(0,`rgba(255,245,200,${.35*night})`);g.addColorStop(1,'rgba(255,245,200,0)');
+      const g=ctx.createLinearGradient(0,a[1],0,P[1]);g.addColorStop(0,`rgba(255,245,200,${.15*night})`);g.addColorStop(1,'rgba(255,245,200,0)');
       ctx.globalCompositeOperation='lighter';ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.lineTo(c[0],c[1]);ctx.lineTo(P[0],P[1]);ctx.closePath();ctx.fill();ctx.globalCompositeOperation='source-over';}}}}
   }
   ctx.fillStyle='rgba(0,0,0,.3)';
   for(const c of s.cars)if(c.z<ZN)shadowQuad(c.x,c.z,c.w,c.len,c.rot);
-  shadowQuad(playerX,0,PWID,PL,0);
+  shadowQuad(playerX,0,PWID*(1-s.jy*.15),PL*(1-s.jy*.15),0);
   const list=[];
   for(const o of scenery)if(o.z<ZN)list.push([o.z,0,o]);
   for(const c of s.cars)if(c.z<ZN)list.push([c.z,1,c]);
@@ -794,7 +864,7 @@ function renderRoad(){
     else if(t===7)drawFinish(o);
     else{
       drawPlayerFx(s);
-      if(!blink)drawCarParts(playerParts,mkT(playerX,0,-s.tilt*.09-s.tilt*s.drift*.28,-s.tilt*.07),{});
+      if(!blink)drawCarParts(playerParts,Object.assign(mkT(playerX,0,-s.tilt*.09-s.tilt*s.drift*.28,-s.tilt*.07),{Y:s.jy}),{});
       drawPlayerOverlay(s);
     }
   }
@@ -877,6 +947,7 @@ function updateHUD(){
   if(s.ghost){const gd=Math.min(L,s.time*s.ghost.v);if(s.mkG)s.mkG.style.left=(gd/L*100)+'%';
     const delta=(s.dist-gd)/s.ghost.v,g=$('ghostd');g.textContent=`내 기록 ${delta>=0?'+':''}${delta.toFixed(1)}s`;g.style.color=delta>=0?'#7CFC9a':'#ff7b7b';}
   else $('ghostd').textContent='';
+  {const j=hudSlots.j,ready=s.jcd<=0&&s.jy===0;j.classList.toggle('has',ready);j.classList.toggle('active',s.jy>0);j.querySelector('.c').textContent=ready?'OK':s.jcd.toFixed(1);}
   for(const k of ['q','w','e','r']){const d=hudSlots[k],has=s.bag[k]>0;
     d.classList.toggle('has',has);d.classList.toggle('active',(k==='q'&&s.boost>0)||(k==='w'&&s.shield)||(k==='e'&&s.magnet>0));
     d.querySelector('.c').textContent='x'+s.bag[k];}
@@ -887,7 +958,7 @@ function updatePops(dt){
   S.pops=S.pops.filter(p=>{if(p.life<=0){p.el.remove();return false;}return true;});
 }
 function resize(){
-  DPR=Math.min(window.devicePixelRatio||1,2);VW=innerWidth;VH=innerHeight;
+  DPR=Math.min(window.devicePixelRatio||1,(typeof isTouch!=='undefined'&&isTouch)?1.5:2);VW=innerWidth;VH=innerHeight;
   cv.width=Math.floor(VW*DPR);cv.height=Math.floor(VH*DPR);
   CXO=(mode==='garage'&&VW>700)?-170:0;
 }
@@ -921,6 +992,7 @@ function frameBody(dt){
 
 /* ================= 화면 전환 / 루프 UI ================= */
 function show(id){
+  if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
   for(const x of ['title','league','garage','over'])$(x).classList.toggle('hidden',x!==id);
   $('hud').classList.toggle('hidden',!!id);
 }
@@ -1035,7 +1107,8 @@ function buildGarage(){
         const ok=save.gold>=cost&&(!need||save.parts[x.k]>0);if(!ok)b.classList.add('lock');
         b.onclick=()=>{
           if(!ok){b.innerHTML=save.gold<cost?'크레딧 부족':'부품 필요';return;}
-          save.gold-=cost;if(need)save.parts[x.k]--;u[x.k]++;persist();buildGarage();};}
+          ask(`<b>${x.name} Lv.${lv} → Lv.${lv+1}</b><br>${cost} CR${need?' + '+PART_NAMES[x.k]+' 1개':''}를 사용해 강화하시겠습니까?`,
+            ()=>{save.gold-=cost;if(need)save.parts[x.k]--;u[x.k]++;persist();buildGarage();});};}
       row.appendChild(b);box.appendChild(row);
     }
     box.insertAdjacentHTML('beforeend','<div class="sec">※ Lv.4~5 강화에는 레이스 보상으로 얻는 부품이 필요합니다.</div>');
@@ -1047,11 +1120,13 @@ function buildGarage(){
         const owned=save.owned.includes(it.id),on=save.eq[t]===it.id;
         const b=document.createElement('button');b.className=(on?'on ':'')+(owned?'':'lock');
         const sw=(t==='c'||t==='h'||(t==='n'&&it.val!=='none'))?`<span class="sw" style="background:${it.val}"></span>`:'';
-        b.innerHTML=`${sw}${it.name}<br><small>${on?'장착중':owned?'보유':it.price+' CR'}</small>`;
+        b.innerHTML=`${sw}${it.name}<br><small>${on?'장착중':owned?'보유':'구매 '+it.price+' CR'}</small>`;
         b.onclick=()=>{
-          if(!owned){if(save.gold<it.price){b.innerHTML=`${sw}${it.name}<br><small style="color:#ff6b6b">크레딧 부족</small>`;return;}
-            save.gold-=it.price;save.owned.push(it.id);}
-          save.eq[t]=it.id;persist();rebuildPlayer();buildGarage();};
+          const equip=()=>{save.eq[t]=it.id;persist();rebuildPlayer();buildGarage();};
+          if(owned){equip();return;}
+          if(save.gold<it.price){b.innerHTML=`${sw}${it.name}<br><small style="color:#ff6b6b">크레딧 부족</small>`;return;}
+          ask(`<b>${label} · ${it.name}</b><br>${it.price} CR에 구매하시겠습니까?<br><small>보유 ${save.gold} CR → ${save.gold-it.price} CR</small>`,
+            ()=>{save.gold-=it.price;save.owned.push(it.id);equip();});};
         wrap.appendChild(b);
       });
       box.appendChild(wrap);
@@ -1068,7 +1143,8 @@ function buildGarage(){
       else if(own){b.textContent='선택';b.onclick=()=>{save.car=c.id;curUp(c.id);persist();rebuildPlayer();buildGarage();};}
       else{b.innerHTML=`해금<br><small>해금권 ${c.cost}장</small>`;if(save.tickets<c.cost)b.classList.add('lock');
         b.onclick=()=>{if(save.tickets<c.cost){b.innerHTML='해금권 부족';return;}
-          save.tickets-=c.cost;save.cars.push(c.id);save.car=c.id;curUp(c.id);persist();rebuildPlayer();buildGarage();};}
+          ask(`<b>${c.name}</b><br>해금권 ${c.cost}장으로 해금하시겠습니까?`,
+            ()=>{save.tickets-=c.cost;save.cars.push(c.id);save.car=c.id;curUp(c.id);persist();rebuildPlayer();buildGarage();});};}
       row.appendChild(b);box.appendChild(row);
     }
   }
@@ -1076,6 +1152,18 @@ function buildGarage(){
 function openGarage(tab){
   mode='garage';gtab=tab||gtab;newRun(TR);show('garage');buildGarage();resize();
 }
+let cfmYes=null;
+function ask(msg,yes){$('cfmMsg').innerHTML=msg;cfmYes=yes;$('cfm').classList.remove('hidden');}
+$('cfmYes').onclick=()=>{$('cfm').classList.add('hidden');const f=cfmYes;cfmYes=null;if(f)f();};
+$('cfmNo').onclick=()=>{$('cfm').classList.add('hidden');cfmYes=null;};
+var isTouch=('ontouchstart' in window)||(window.matchMedia&&matchMedia('(pointer: coarse)').matches);
+if(isTouch)document.body.classList.add('touch');
+document.querySelectorAll('#touch button').forEach(b=>{
+  const down=e=>{e.preventDefault();b.classList.add('on');if(b.dataset.k)keys[b.dataset.k]=true;else doJump();};
+  const up=()=>{b.classList.remove('on');if(b.dataset.k)keys[b.dataset.k]=false;};
+  b.addEventListener('pointerdown',down);b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);b.addEventListener('pointerleave',up);
+  b.addEventListener('contextmenu',e=>e.preventDefault());
+});
 $('bStart').onclick=openLeague;
 $('bGarage').onclick=()=>openGarage('up');
 $('bLgBack').onclick=openHub;
